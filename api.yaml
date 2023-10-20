@@ -1,0 +1,91 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Tiny Systems API
+  description: Webhook API, Development API
+
+servers:
+  - url: https://api.tinysystems.io
+    description: Tiny Systems API server
+
+paths:
+  /webhook/port-data:
+    post:
+      operationId: port-data-webhook
+      tags:
+        - webhooks
+      description: |
+        Receives port data from a tiny tracker
+      security: []
+      requestBody:
+        description: Port binary data
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      parameters:
+        - in: header
+          name: X-TinySystems-Port-Full-Name
+          schema:
+            type: string
+          required: true
+        - in: header
+          name: X-TinySystems-Flow-Id
+          schema:
+            type: string
+          required: true
+        - in: header
+          name: X-TinySystems-Edge-Id
+          schema:
+            type: string
+        - in: header
+          name: X-TinySystems-Error
+          description: If current data describes an error
+          schema:
+            type: string
+      responses:
+        200:
+          description: Success
+  /webhook/statistics:
+    post:
+      operationId: port-data-statistics
+      tags:
+        - webhooks
+      description: |
+        Receives statistics information from a tiny tracker
+      security: []
+      requestBody:
+        description: Statistics key value object
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NodeStatisticsMap"
+      parameters:
+        - in: header
+          name: X-TinySystems-Node-Name
+          schema:
+            type: string
+          required: true
+        - in: header
+          name: X-TinySystems-Flow-Id
+          schema:
+            type: string
+          required: true
+      responses:
+        200:
+          description: Success
+components:
+  schemas:
+    NodeStatisticsMap:
+      type: object
+      additionalProperties: {}
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+security:
+  - BearerAuth: [ ]
