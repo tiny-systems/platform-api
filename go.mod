@@ -2,12 +2,18 @@ module github.com/tiny-systems/platform-api
 
 go 1.20
 
-require github.com/deepmap/oapi-codegen v1.15.0
+require (
+	github.com/deepmap/oapi-codegen v1.15.0
+	github.com/getkin/kin-openapi v0.118.0
+	github.com/gorilla/mux v1.8.0
+	github.com/oapi-codegen/runtime v1.0.0
+)
 
 require (
-	github.com/getkin/kin-openapi v0.118.0 // indirect
+	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.5 // indirect
+	github.com/google/uuid v1.3.1 // indirect
 	github.com/invopop/yaml v0.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
