@@ -116,6 +116,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// Halthcheck request
+	Halthcheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PortDataWebhookWithBody request with any body
 	PortDataWebhookWithBody(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -123,6 +126,18 @@ type ClientInterface interface {
 	PortDataStatisticsWithBody(ctx context.Context, params *PortDataStatisticsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PortDataStatistics(ctx context.Context, params *PortDataStatisticsParams, body PortDataStatisticsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) Halthcheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewHalthcheckRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) PortDataWebhookWithBody(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -159,6 +174,33 @@ func (c *Client) PortDataStatistics(ctx context.Context, params *PortDataStatist
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewHalthcheckRequest generates requests for Halthcheck
+func NewHalthcheckRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/health")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewPortDataWebhookRequestWithBody generates requests for PortDataWebhook with any type of body
@@ -339,6 +381,9 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// HalthcheckWithResponse request
+	HalthcheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HalthcheckResponse, error)
+
 	// PortDataWebhookWithBodyWithResponse request with any body
 	PortDataWebhookWithBodyWithResponse(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PortDataWebhookResponse, error)
 
@@ -346,6 +391,27 @@ type ClientWithResponsesInterface interface {
 	PortDataStatisticsWithBodyWithResponse(ctx context.Context, params *PortDataStatisticsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PortDataStatisticsResponse, error)
 
 	PortDataStatisticsWithResponse(ctx context.Context, params *PortDataStatisticsParams, body PortDataStatisticsJSONRequestBody, reqEditors ...RequestEditorFn) (*PortDataStatisticsResponse, error)
+}
+
+type HalthcheckResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r HalthcheckResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r HalthcheckResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type PortDataWebhookResponse struct {
@@ -390,6 +456,15 @@ func (r PortDataStatisticsResponse) StatusCode() int {
 	return 0
 }
 
+// HalthcheckWithResponse request returning *HalthcheckResponse
+func (c *ClientWithResponses) HalthcheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HalthcheckResponse, error) {
+	rsp, err := c.Halthcheck(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseHalthcheckResponse(rsp)
+}
+
 // PortDataWebhookWithBodyWithResponse request with arbitrary body returning *PortDataWebhookResponse
 func (c *ClientWithResponses) PortDataWebhookWithBodyWithResponse(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PortDataWebhookResponse, error) {
 	rsp, err := c.PortDataWebhookWithBody(ctx, params, contentType, body, reqEditors...)
@@ -414,6 +489,22 @@ func (c *ClientWithResponses) PortDataStatisticsWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParsePortDataStatisticsResponse(rsp)
+}
+
+// ParseHalthcheckResponse parses an HTTP response from a HalthcheckWithResponse call
+func ParseHalthcheckResponse(rsp *http.Response) (*HalthcheckResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &HalthcheckResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
 }
 
 // ParsePortDataWebhookResponse parses an HTTP response from a PortDataWebhookWithResponse call
@@ -451,6 +542,9 @@ func ParsePortDataStatisticsResponse(rsp *http.Response) (*PortDataStatisticsRes
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 
+	// (GET /health)
+	Halthcheck(w http.ResponseWriter, r *http.Request)
+
 	// (POST /webhook/port-data)
 	PortDataWebhook(w http.ResponseWriter, r *http.Request, params PortDataWebhookParams)
 
@@ -466,6 +560,21 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// Halthcheck operation middleware
+func (siw *ServerInterfaceWrapper) Halthcheck(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Halthcheck(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
 
 // PortDataWebhook operation middleware
 func (siw *ServerInterfaceWrapper) PortDataWebhook(w http.ResponseWriter, r *http.Request) {
@@ -754,6 +863,8 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	r.HandleFunc(options.BaseURL+"/health", wrapper.Halthcheck).Methods("GET")
+
 	r.HandleFunc(options.BaseURL+"/webhook/port-data", wrapper.PortDataWebhook).Methods("POST")
 
 	r.HandleFunc(options.BaseURL+"/webhook/statistics", wrapper.PortDataStatistics).Methods("POST")
@@ -764,17 +875,17 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/8xVQW/bOgz+KwLfO9px3tvNtxZdgRxWFMuADehyUGSmUWtLGkmnMAr/94G2lyzNNmQD",
-	"NuxmUJ++TyQ/0s/gYpNiwCAM5TOw22Jjh8+bWOFSrHgW7/iNTRq0VeXFx2DrW4oJSTwquM9AuoRQQlw/",
-	"oBPo+wwYXUteuqVyDjC4REtIF61s92J6aT2EYU+yFUnQK4cPm6jQCtmRTyoNJbzH9TbGR3Nxu8jMFe6w",
-	"jqnBIBpQFi+10rzzoTPLjgUbno52SDxy/Debz+bQZxATBps8lPBqCGWQrGyH5xZPo1CRIkleWbEaTZHl",
-	"9E1v0aHfIRvFGsWaDcXGWCP6DCHrHpE+BhgUyeq1RQUl3EaSKyt2SmrQJ9ugIDGUd8/glX6LthpKFOxQ",
-	"sg+5ZjcllytHft3WdX6jxxkQfmo9YQWlUIvZ1Fd99VRiFvLhXvt0lsB1HZ/yRfUbmF9X9zgy/5DpuNiL",
-	"jXEtkbZ8qPR4ukY2Nhgkiip3jvgE/b70aswYWS5j1SnCxSAYBgfYlGrvhlYW0QlKzkJom8Mk6dcmUmNF",
-	"be6Dpe5g871In73IT/tpRviQ4Endew1wioHHwfp/Pj+15LJ1DpmPhhHKu1UGYu/VWzD5m2GlmL3deT/2",
-	"Z/j9ADY6rZqrj+EnzX9YNL/kf91Vf5P1z3bNA2sxv3bLv4QbKOGf4rCYi2krF6cr+RveOQDMI3ZmZ+sW",
-	"zbSW/4CNjkHHK/9upZVhpN2X3h4rvVzYZoRCBi3V03+By6Kwyc/UWDxCZz5Cv+o/BwAA//8P51IZzAYA",
-	"AA==",
+	"H4sIAAAAAAAC/8xVQW/TTBD9K6v5vqMTB7j51qpU5EBVESSQSg6b9SText5dZseprMr/Hc3aJKQpKCBA",
+	"3Kzd5zczb97OPILxTfAOHUcoHiGaChudPm98iQvWbCNbE9/qIIe6LC1b73R9Sz4gsUUB9xlwFxAK8Kt7",
+	"NAx9n0FE05LlbiGcCQaXqAnpouVqH0x+WqVj2JNUzAF64bBu7QVaYjRkg4SGAj7gqvJ+qy5u55m6wh3W",
+	"PjToWA6ExXItNO+t69Sii4xNHK92SHHgeDGdTWfQZ+ADOh0sFPAqHWUQNFcp3bxCXQ+5bpBP83iTrpWp",
+	"0GwVujJ46xgSJWnBzEtBCShhIAPCGLyLgxwvZ7NT0kVrDMZ4JCEUd8sMWG8iFHcwZDUwLgWWPwyC5MET",
+	"T0rNWmiDj8/k/A4N2h1GJVglWLUm3yitWORi0maL9MmdlHHria8061H8pBPpBhlJsnoEK/QV6jK10unU",
+	"2o8T6cLYhIlwTK7bup7cyLXI8bm1hCUUTC1mo/8k69EKkcm6jYhxVoDr2j9M5uUfYH5dbnBg/iHTsdjz",
+	"tTItkVgzKT3crjAq7RQSeQl3TvAR+v3Qy6FijHzpy04QxjtGlxygQ6itSa3MvWHkSWRC3RxevHytPTWa",
+	"5Tlap6k7PMd9kD57Up/0Uw3wVOCJ7v3vcfzo7/jE7nE/ns7w+wGsZKpIrda7nzT/YSD+kv9lpv5L1j/b",
+	"NfdRxPzWLf8TrqGA//LDAsnH7ZGfro5nvHMAqC12aqfrFtW4Pv6CjY5Bx6vpbinKRKTd194eR3q6WNQA",
+	"hQxaqsf9FYs818FOxVhxgE6th37ZfwkAAP//nLISsHQHAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
