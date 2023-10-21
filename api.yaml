@@ -111,7 +111,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublishModuleResponse"
+                $ref: "#/components/schemas/PublishModuleResult"
   /devtools/update-module-version:
     post:
       operationId: update-module-version
@@ -137,7 +137,7 @@ components:
       type: object
       additionalProperties: {}
 
-    PublishModuleResponse:
+    PublishModuleResult:
       type: object
       properties:
         module:
