@@ -9,6 +9,16 @@ servers:
     description: Tiny Systems API server
 
 paths:
+  /health:
+    get:
+      operationId: halthcheck
+      tags:
+        - healthcheck
+      description: Health check endpoint
+      security: []
+      responses:
+        200:
+          description: Success
   /webhook/port-data:
     post:
       operationId: port-data-webhook
