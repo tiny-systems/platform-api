@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	BearerAuthJWTScopes  = "BearerAuthJWT.Scopes"
+	BearerAuthScopes     = "BearerAuth.Scopes"
 	DeveloperTokenScopes = "DeveloperToken.Scopes"
 )
 
@@ -950,7 +950,7 @@ func (siw *ServerInterfaceWrapper) PortDataWebhook(w http.ResponseWriter, r *htt
 
 	var err error
 
-	ctx = context.WithValue(ctx, BearerAuthJWTScopes, []string{})
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params PortDataWebhookParams
@@ -1058,7 +1058,7 @@ func (siw *ServerInterfaceWrapper) PortDataStatistics(w http.ResponseWriter, r *
 
 	var err error
 
-	ctx = context.WithValue(ctx, BearerAuthJWTScopes, []string{})
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params PortDataStatisticsParams
@@ -1251,24 +1251,24 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/8xX32/jNgz+VwRtwF6cptve8na9rlgG3K24dncDujwoFhPrYks+kU4RFP7fB/1wHcdK",
-	"ltsWbG+JRVLkx48f7Reem6o2GjQhn71wzAuohP9506hS3jdY/FqTMto/q62pwZKC8E8gPhsr3W/a1cBn",
-	"HMkqveZtxi3UJnlAYp183iBYLSpIHPpwXxplQfLZU2+Z9SnEC0P4RdZFMMvPkJML/95IeCBBCknl+E7U",
-	"7h4hpXLFifJ+v7I24X/fLEuFxdsOrjEcEjC3yoOVLFDpVRqRI1X7WnxkRVBh2iI8ENaK3QiniNF+Xovj",
-	"lb0zsinhA3xpABPVDXnymtG3FlZ8xr+Z9ufTSKLpCLJRwtkFQNuCxXS0NDydfbZf4hk4YVMmYKr86ZnI",
-	"hFAfYwJtxk0/aqfcR6PZtn+V78celWHCSl4IXuWG8gDjFKy/1VIQDLI8SsKQ7IAzPHiy6Mrmtzw7rkZD",
-	"13kl1sA64TgiVCkXd5SdU/9JUWozjpA3VtHuwXU21HgDwoJ901Dh/i39vztjK0F8xn/59MizoNIuUjjt",
-	"UymIapf6LWyhdMA9mg3oV2E/7tLujdqw4E+wLIzZsDf384zFuBVocg9cFEWO7vxR6R172KHThXj0yhT+",
-	"/dX11XXgN2hRKz7jP/pHTsCp8GVPJWzJmBKndeDtpB+l2gQyDDP7AGuFBBZZsGRCS2aBGquR5RYkaFKi",
-	"RLYylin6DlndYPGHm3QHjXBh5pLPhoPCQxcB6cbIXVA+TVHwRV2XKvee089oemTFV018x28P+7CoaNeV",
-	"FFPh+9Qi24DnGtZGYyDND9fXl0rV61wi04cmzwFxQGM+e3oZke9p0S66XfbEuzbzhXPsu954GYhNn+yp",
-	"TLr5QTU6mKI5e1ZUMOVH1LHZDY0yOtHyhOhcqPEn5C0B6kjMsnE555LhEu0qQJRBmNaQ6MrP/pjlBeQb",
-	"BlrWRmkagR+s3joj/g9S38sypOWvjYk+B9ma1sbSRAoSp3QkB7UFZM6WOVu2sqZigpETNbIi34BN6Yax",
-	"dCtIRIn0amZFBU6TPLTKhS9ASC+4YaXy3ydOK6NUTlyMyV1TlpP3YVUOW5vtsWy0bs664K40z5O5vEDk",
-	"n+QaQuSTkQ7254rljbVugXikw+kSkAnNwFrjrjvn8mh6/OrFufNscgKaIFkQ1XCuV93aXSot7C6x8sf6",
-	"7TgUzH2B//Kw9i8H7k3gYFYj5/FgBPD1q+eMGeiN9yXnKwei/876WzPhPtX+T+OwuMxmGH+RprZs348N",
-	"7NhWlA2w+AL5H1HruGPnhWC3Xb+Htx++JrJgyjPe2DK+jeJsOhW1unJkw2B6pQxvF+2fAQAA//9TFdyC",
-	"rhAAAA==",
+	"H4sIAAAAAAAC/8xXT2/jthP9KgR/P6AXOU7bm2+bTYOmwG6DTbpbIPWBFscW1xKp5YwcGIG+e8E/iqSI",
+	"9nrbGu3NFmeGM2/evJGeeW6q2mjQhHzxzDEvoBL+51WjSnnXYPFrTcpo/6y2pgZLCsI/gfhkrHS/aV8D",
+	"X3Akq/SGtxm3UJvkAYlN8nmDYLWoIHHow31plAXJF4+9ZdanEC8M4ZdZF8GsPkNOLvx7I+GeBCkkleM7",
+	"Ubt7hJTKFSfKu2FlbcL/rlmVCou3HVxTOCRgbpUHK1mg0us0Igeq9rX4yIqgwrRFeCCsFfsJThGjYV7L",
+	"w5W9M7Ip4QN8aQAT1Y158pLR/y2s+YL/b96fzyOJ5hPIJglnZwBtBxbT0dLwdPbZsMQTcMKmTMBU+dMT",
+	"kQmhPsYE2oybftSOuU9Gs22/lu/HHpVxwkqeCV7lhvIVxilYf6ulIBhleZCEIdkRZ3jwZNGV3V7z7LAa",
+	"jV1vK7EB1gnHAaFKubij7JT6j4pSm3GEvLGK9veus6HGKxAW7JuGCvdv5f/dGFsJ4gv+y6cHngWVdpHC",
+	"aZ9KQVS71K9hB6UD7sFsQb8I+2GXdjBq44I/waowZsve3N1mLMatQJN74KIocnTnD0rv2f0enS7Eoxem",
+	"8O8vLi8uA79Bi1rxBf/RP3ICToUvey5hR8aUOK8Db2f9KNUmkGGc2QfYKCSwyIIlE1oyC9RYjSy3IEGT",
+	"EiWytbFM0XfI6gaLP9ykO2iEC3Mr+WI8KDx0EZCujNwH5dMUBV/Udaly7zn/jKZHVnzTxHf89rCPi4p2",
+	"XUkxFT6kFtkGPNewNhoDaX64vDxXql7nEpneN3kOiCMa88Xj84R8j8t22e2yR961mS+dY9/1xstAbPps",
+	"oDLp5gfV6GCK5uxJUcGUH1HHZjc0yuhEyxOic6bGH5G3BKgTMcum5ZxKhnO0qwBRBmHaQKIrP/tjlheQ",
+	"bxloWRulaQJ+sHrrjPjfSH2QZUjLXxsTfQqyNa+NpZkUJI7pSA5qB8icLXO2bG1NxQQjJ2pkRb4Fm9IN",
+	"Y+lakIgS6dXMigqcJnlolQtfgJBecMNK5b/PnFZGqZy5GLObpixn78OqHLc2G7Bssm5OuuCmNE+zW3mG",
+	"yD/JDYTIRyO92p9rljfWugXikQ6nK0AmNANrjbvulMuj6eGrl6fOs8kJaIZkQVTjuV53a3eltLD7xMqf",
+	"6rfjUDD3Bf7Dwzp8ORgPaiQ8vuI/vnzynDAAvfFQb75xGvqPrL80EO477b80C8vzrIXp52hqxfb92MKe",
+	"7UTZAItvj/8Gr77uhWB3XbPHV79+QWTBlGe8sWV8D8XFfC5qdeGYhsH0QhneLts/AwAA//8kbl0NqBAA",
+	"AA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
