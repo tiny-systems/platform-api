@@ -27,7 +27,7 @@ paths:
       description: |
         Receives port data from a tiny tracker
       security:
-        - BearerAuthJWT: []
+        - BearerAuth: []
       requestBody:
         description: Port binary data
         required: true
@@ -67,7 +67,7 @@ paths:
       description: |
         Receives statistics information from a tiny tracker
       security:
-        - BearerAuthJWT: []
+        - BearerAuth: []
       requestBody:
         description: Statistics key value object
         required: true
