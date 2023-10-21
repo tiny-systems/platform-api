@@ -11,7 +11,7 @@ servers:
 paths:
   /health:
     get:
-      operationId: halthcheck
+      operationId: health-check
       tags:
         - healthcheck
       description: Health check endpoint
@@ -26,7 +26,8 @@ paths:
         - webhooks
       description: |
         Receives port data from a tiny tracker
-      security: []
+      security:
+        - BearerAuthJWT: []
       requestBody:
         description: Port binary data
         required: true
@@ -65,7 +66,8 @@ paths:
         - webhooks
       description: |
         Receives statistics information from a tiny tracker
-      security: []
+      security:
+        - BearerAuthJWT: []
       requestBody:
         description: Statistics key value object
         required: true
@@ -87,15 +89,148 @@ paths:
       responses:
         200:
           description: Success
+  /devtools/publish-module:
+    post:
+      operationId: publish-module
+      tags:
+        - devtools
+      description: |
+        Registers module and returns credentials for it's push
+      security:
+        - DeveloperToken: []
+      requestBody:
+        description: Publish module request
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishModuleRequest"
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishModuleResponse"
+  /devtools/update-module-version:
+    post:
+      operationId: update-module-version
+      tags:
+        - devtools
+      description: |
+        Update module version with image information
+      security:
+        - DeveloperToken: []
+      requestBody:
+        description: Module Version ID, image information
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateModuleVersionIDRequest"
+      responses:
+        200:
+          description: Success
 components:
   schemas:
     NodeStatisticsMap:
       type: object
       additionalProperties: {}
 
+    PublishModuleResponse:
+      type: object
+      properties:
+        module:
+          $ref: "#/components/schemas/PublishModuleVersion"
+        options:
+          $ref: "#/components/schemas/BuildPushOptions"
+    PublishModuleVersion:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+      required:
+        - id
+        - name
+        - version
+    BuildPushOptions:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        repo:
+          type: string
+        tag:
+          type: string
+      required:
+        - username
+        - password
+        - repo
+        - tag
+    PublishModuleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        info:
+          type: string
+        description:
+          type: string
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublishComponent'
+      required:
+        - name
+    PublishComponent:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        info:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - description
+    UpdateModuleVersionIDRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Module Version ID
+        repo:
+          type: string
+          description: Image repo
+        tag:
+          type: string
+          description: Image tag
+      required:
+        - id
+        - repo
+        - tag
   securitySchemes:
+    DeveloperToken:
+      type: http
+      scheme: bearer
     BearerAuth:
       type: http
       scheme: bearer
+      bearerFormat: JWT
 security:
   - BearerAuth: [ ]
+
+

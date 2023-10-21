@@ -21,8 +21,63 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+const (
+	BearerAuthJWTScopes  = "BearerAuthJWT.Scopes"
+	DeveloperTokenScopes = "DeveloperToken.Scopes"
+)
+
+// BuildPushOptions defines model for BuildPushOptions.
+type BuildPushOptions struct {
+	Password string `json:"password"`
+	Repo     string `json:"repo"`
+	Tag      string `json:"tag"`
+	Username string `json:"username"`
+}
+
 // NodeStatisticsMap defines model for NodeStatisticsMap.
 type NodeStatisticsMap map[string]interface{}
+
+// PublishComponent defines model for PublishComponent.
+type PublishComponent struct {
+	Description string    `json:"description"`
+	Info        *string   `json:"info,omitempty"`
+	Name        string    `json:"name"`
+	Tags        *[]string `json:"tags,omitempty"`
+}
+
+// PublishModuleRequest defines model for PublishModuleRequest.
+type PublishModuleRequest struct {
+	Components  *[]PublishComponent `json:"components,omitempty"`
+	Description *string             `json:"description,omitempty"`
+	Info        *string             `json:"info,omitempty"`
+	Name        string              `json:"name"`
+	Version     *string             `json:"version,omitempty"`
+}
+
+// PublishModuleResponse defines model for PublishModuleResponse.
+type PublishModuleResponse struct {
+	Module  *PublishModuleVersion `json:"module,omitempty"`
+	Options *BuildPushOptions     `json:"options,omitempty"`
+}
+
+// PublishModuleVersion defines model for PublishModuleVersion.
+type PublishModuleVersion struct {
+	Id      string `json:"id"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+// UpdateModuleVersionIDRequest defines model for UpdateModuleVersionIDRequest.
+type UpdateModuleVersionIDRequest struct {
+	// Id Module Version ID
+	Id string `json:"id"`
+
+	// Repo Image repo
+	Repo string `json:"repo"`
+
+	// Tag Image tag
+	Tag string `json:"tag"`
+}
 
 // PortDataWebhookParams defines parameters for PortDataWebhook.
 type PortDataWebhookParams struct {
@@ -39,6 +94,12 @@ type PortDataStatisticsParams struct {
 	XTinySystemsNodeName string `json:"X-TinySystems-Node-Name"`
 	XTinySystemsFlowId   string `json:"X-TinySystems-Flow-Id"`
 }
+
+// PublishModuleJSONRequestBody defines body for PublishModule for application/json ContentType.
+type PublishModuleJSONRequestBody = PublishModuleRequest
+
+// UpdateModuleVersionJSONRequestBody defines body for UpdateModuleVersion for application/json ContentType.
+type UpdateModuleVersionJSONRequestBody = UpdateModuleVersionIDRequest
 
 // PortDataStatisticsJSONRequestBody defines body for PortDataStatistics for application/json ContentType.
 type PortDataStatisticsJSONRequestBody = NodeStatisticsMap
@@ -116,8 +177,18 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// Halthcheck request
-	Halthcheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PublishModuleWithBody request with any body
+	PublishModuleWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PublishModule(ctx context.Context, body PublishModuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateModuleVersionWithBody request with any body
+	UpdateModuleVersionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateModuleVersion(ctx context.Context, body UpdateModuleVersionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// HealthCheck request
+	HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PortDataWebhookWithBody request with any body
 	PortDataWebhookWithBody(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -128,8 +199,56 @@ type ClientInterface interface {
 	PortDataStatistics(ctx context.Context, params *PortDataStatisticsParams, body PortDataStatisticsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) Halthcheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewHalthcheckRequest(c.Server)
+func (c *Client) PublishModuleWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishModuleRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PublishModule(ctx context.Context, body PublishModuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishModuleRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateModuleVersionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateModuleVersionRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateModuleVersion(ctx context.Context, body UpdateModuleVersionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateModuleVersionRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewHealthCheckRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -176,8 +295,88 @@ func (c *Client) PortDataStatistics(ctx context.Context, params *PortDataStatist
 	return c.Client.Do(req)
 }
 
-// NewHalthcheckRequest generates requests for Halthcheck
-func NewHalthcheckRequest(server string) (*http.Request, error) {
+// NewPublishModuleRequest calls the generic PublishModule builder with application/json body
+func NewPublishModuleRequest(server string, body PublishModuleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPublishModuleRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPublishModuleRequestWithBody generates requests for PublishModule with any type of body
+func NewPublishModuleRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/devtools/publish-module")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewUpdateModuleVersionRequest calls the generic UpdateModuleVersion builder with application/json body
+func NewUpdateModuleVersionRequest(server string, body UpdateModuleVersionJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateModuleVersionRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewUpdateModuleVersionRequestWithBody generates requests for UpdateModuleVersion with any type of body
+func NewUpdateModuleVersionRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/devtools/update-module-version")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewHealthCheckRequest generates requests for HealthCheck
+func NewHealthCheckRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -381,8 +580,18 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// HalthcheckWithResponse request
-	HalthcheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HalthcheckResponse, error)
+	// PublishModuleWithBodyWithResponse request with any body
+	PublishModuleWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishModuleResponse, error)
+
+	PublishModuleWithResponse(ctx context.Context, body PublishModuleJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishModuleResponse, error)
+
+	// UpdateModuleVersionWithBodyWithResponse request with any body
+	UpdateModuleVersionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateModuleVersionResponse, error)
+
+	UpdateModuleVersionWithResponse(ctx context.Context, body UpdateModuleVersionJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateModuleVersionResponse, error)
+
+	// HealthCheckWithResponse request
+	HealthCheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthCheckResponse, error)
 
 	// PortDataWebhookWithBodyWithResponse request with any body
 	PortDataWebhookWithBodyWithResponse(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PortDataWebhookResponse, error)
@@ -393,13 +602,14 @@ type ClientWithResponsesInterface interface {
 	PortDataStatisticsWithResponse(ctx context.Context, params *PortDataStatisticsParams, body PortDataStatisticsJSONRequestBody, reqEditors ...RequestEditorFn) (*PortDataStatisticsResponse, error)
 }
 
-type HalthcheckResponse struct {
+type PublishModuleResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *PublishModuleResponse
 }
 
 // Status returns HTTPResponse.Status
-func (r HalthcheckResponse) Status() string {
+func (r PublishModuleResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -407,7 +617,49 @@ func (r HalthcheckResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r HalthcheckResponse) StatusCode() int {
+func (r PublishModuleResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateModuleVersionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateModuleVersionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateModuleVersionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type HealthCheckResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r HealthCheckResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r HealthCheckResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -456,13 +708,47 @@ func (r PortDataStatisticsResponse) StatusCode() int {
 	return 0
 }
 
-// HalthcheckWithResponse request returning *HalthcheckResponse
-func (c *ClientWithResponses) HalthcheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HalthcheckResponse, error) {
-	rsp, err := c.Halthcheck(ctx, reqEditors...)
+// PublishModuleWithBodyWithResponse request with arbitrary body returning *PublishModuleResponse
+func (c *ClientWithResponses) PublishModuleWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishModuleResponse, error) {
+	rsp, err := c.PublishModuleWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseHalthcheckResponse(rsp)
+	return ParsePublishModuleResponse(rsp)
+}
+
+func (c *ClientWithResponses) PublishModuleWithResponse(ctx context.Context, body PublishModuleJSONRequestBody, reqEditors ...RequestEditorFn) (*PublishModuleResponse, error) {
+	rsp, err := c.PublishModule(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishModuleResponse(rsp)
+}
+
+// UpdateModuleVersionWithBodyWithResponse request with arbitrary body returning *UpdateModuleVersionResponse
+func (c *ClientWithResponses) UpdateModuleVersionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateModuleVersionResponse, error) {
+	rsp, err := c.UpdateModuleVersionWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateModuleVersionResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateModuleVersionWithResponse(ctx context.Context, body UpdateModuleVersionJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateModuleVersionResponse, error) {
+	rsp, err := c.UpdateModuleVersion(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateModuleVersionResponse(rsp)
+}
+
+// HealthCheckWithResponse request returning *HealthCheckResponse
+func (c *ClientWithResponses) HealthCheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthCheckResponse, error) {
+	rsp, err := c.HealthCheck(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseHealthCheckResponse(rsp)
 }
 
 // PortDataWebhookWithBodyWithResponse request with arbitrary body returning *PortDataWebhookResponse
@@ -491,15 +777,57 @@ func (c *ClientWithResponses) PortDataStatisticsWithResponse(ctx context.Context
 	return ParsePortDataStatisticsResponse(rsp)
 }
 
-// ParseHalthcheckResponse parses an HTTP response from a HalthcheckWithResponse call
-func ParseHalthcheckResponse(rsp *http.Response) (*HalthcheckResponse, error) {
+// ParsePublishModuleResponse parses an HTTP response from a PublishModuleWithResponse call
+func ParsePublishModuleResponse(rsp *http.Response) (*PublishModuleResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &HalthcheckResponse{
+	response := &PublishModuleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PublishModuleResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateModuleVersionResponse parses an HTTP response from a UpdateModuleVersionWithResponse call
+func ParseUpdateModuleVersionResponse(rsp *http.Response) (*UpdateModuleVersionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateModuleVersionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseHealthCheckResponse parses an HTTP response from a HealthCheckWithResponse call
+func ParseHealthCheckResponse(rsp *http.Response) (*HealthCheckResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &HealthCheckResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -542,8 +870,14 @@ func ParsePortDataStatisticsResponse(rsp *http.Response) (*PortDataStatisticsRes
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 
+	// (POST /devtools/publish-module)
+	PublishModule(w http.ResponseWriter, r *http.Request)
+
+	// (POST /devtools/update-module-version)
+	UpdateModuleVersion(w http.ResponseWriter, r *http.Request)
+
 	// (GET /health)
-	Halthcheck(w http.ResponseWriter, r *http.Request)
+	HealthCheck(w http.ResponseWriter, r *http.Request)
 
 	// (POST /webhook/port-data)
 	PortDataWebhook(w http.ResponseWriter, r *http.Request, params PortDataWebhookParams)
@@ -561,12 +895,46 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
-// Halthcheck operation middleware
-func (siw *ServerInterfaceWrapper) Halthcheck(w http.ResponseWriter, r *http.Request) {
+// PublishModule operation middleware
+func (siw *ServerInterfaceWrapper) PublishModule(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, DeveloperTokenScopes, []string{})
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PublishModule(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// UpdateModuleVersion operation middleware
+func (siw *ServerInterfaceWrapper) UpdateModuleVersion(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, DeveloperTokenScopes, []string{})
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateModuleVersion(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// HealthCheck operation middleware
+func (siw *ServerInterfaceWrapper) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.Halthcheck(w, r)
+		siw.Handler.HealthCheck(w, r)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -581,6 +949,8 @@ func (siw *ServerInterfaceWrapper) PortDataWebhook(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 
 	var err error
+
+	ctx = context.WithValue(ctx, BearerAuthJWTScopes, []string{})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params PortDataWebhookParams
@@ -687,6 +1057,8 @@ func (siw *ServerInterfaceWrapper) PortDataStatistics(w http.ResponseWriter, r *
 	ctx := r.Context()
 
 	var err error
+
+	ctx = context.WithValue(ctx, BearerAuthJWTScopes, []string{})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params PortDataStatisticsParams
@@ -863,7 +1235,11 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	r.HandleFunc(options.BaseURL+"/health", wrapper.Halthcheck).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/devtools/publish-module", wrapper.PublishModule).Methods("POST")
+
+	r.HandleFunc(options.BaseURL+"/devtools/update-module-version", wrapper.UpdateModuleVersion).Methods("POST")
+
+	r.HandleFunc(options.BaseURL+"/health", wrapper.HealthCheck).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/webhook/port-data", wrapper.PortDataWebhook).Methods("POST")
 
@@ -875,17 +1251,24 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"EAAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
