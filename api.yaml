@@ -1,8 +1,8 @@
 openapi: "3.0.0"
 info:
-  version: 1.0.0
+  version: 0.2.0
   title: Tiny Systems API
-  description: Webhook API, Development API
+  description: Webhook API, Developer API
 
 servers:
   - url: https://api.tinysystems.io
@@ -95,7 +95,7 @@ paths:
       tags:
         - devtools
       description: |
-        Registers module and returns credentials for it's push
+        Registers module and returns credentials for push
       security:
         - DeveloperToken: []
       requestBody:
