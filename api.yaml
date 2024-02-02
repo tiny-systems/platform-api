@@ -2,7 +2,7 @@ openapi: "3.0.0"
 info:
   version: 0.2.0
   title: Tiny Systems API
-  description: Webhook API, Developer API
+  description: Public [Tiny Systems](https://tinysysytems.io/) API
 
 servers:
   - url: https://api.tinysystems.io
