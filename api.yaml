@@ -59,36 +59,6 @@ paths:
       responses:
         200:
           description: Success
-  /webhook/statistics:
-    post:
-      operationId: port-data-statistics
-      tags:
-        - webhooks
-      description: |
-        Receives statistics information from a tiny tracker
-      security:
-        - BearerAuth: []
-      requestBody:
-        description: Statistics key value object
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/NodeStatisticsMap"
-      parameters:
-        - in: header
-          name: X-TinySystems-Node-Name
-          schema:
-            type: string
-          required: true
-        - in: header
-          name: X-TinySystems-Flow-Id
-          schema:
-            type: string
-          required: true
-      responses:
-        200:
-          description: Success
   /devtools/publish-module:
     post:
       operationId: publish-module

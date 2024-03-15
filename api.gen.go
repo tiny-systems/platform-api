@@ -34,9 +34,6 @@ type BuildPushOptions struct {
 	Username string `json:"username"`
 }
 
-// NodeStatisticsMap defines model for NodeStatisticsMap.
-type NodeStatisticsMap map[string]interface{}
-
 // PublishComponent defines model for PublishComponent.
 type PublishComponent struct {
 	Description string    `json:"description"`
@@ -89,20 +86,11 @@ type PortDataWebhookParams struct {
 	XTinySystemsError *string `json:"X-TinySystems-Error,omitempty"`
 }
 
-// PortDataStatisticsParams defines parameters for PortDataStatistics.
-type PortDataStatisticsParams struct {
-	XTinySystemsNodeName string `json:"X-TinySystems-Node-Name"`
-	XTinySystemsFlowId   string `json:"X-TinySystems-Flow-Id"`
-}
-
 // PublishModuleJSONRequestBody defines body for PublishModule for application/json ContentType.
 type PublishModuleJSONRequestBody = PublishModuleRequest
 
 // UpdateModuleVersionJSONRequestBody defines body for UpdateModuleVersion for application/json ContentType.
 type UpdateModuleVersionJSONRequestBody = UpdateModuleVersionRequest
-
-// PortDataStatisticsJSONRequestBody defines body for PortDataStatistics for application/json ContentType.
-type PortDataStatisticsJSONRequestBody = NodeStatisticsMap
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -192,11 +180,6 @@ type ClientInterface interface {
 
 	// PortDataWebhookWithBody request with any body
 	PortDataWebhookWithBody(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// PortDataStatisticsWithBody request with any body
-	PortDataStatisticsWithBody(ctx context.Context, params *PortDataStatisticsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	PortDataStatistics(ctx context.Context, params *PortDataStatisticsParams, body PortDataStatisticsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) PublishModuleWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -261,30 +244,6 @@ func (c *Client) HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn)
 
 func (c *Client) PortDataWebhookWithBody(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPortDataWebhookRequestWithBody(c.Server, params, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) PortDataStatisticsWithBody(ctx context.Context, params *PortDataStatisticsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPortDataStatisticsRequestWithBody(c.Server, params, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) PortDataStatistics(ctx context.Context, params *PortDataStatisticsParams, body PortDataStatisticsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPortDataStatisticsRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -475,68 +434,6 @@ func NewPortDataWebhookRequestWithBody(server string, params *PortDataWebhookPar
 	return req, nil
 }
 
-// NewPortDataStatisticsRequest calls the generic PortDataStatistics builder with application/json body
-func NewPortDataStatisticsRequest(server string, params *PortDataStatisticsParams, body PortDataStatisticsJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewPortDataStatisticsRequestWithBody(server, params, "application/json", bodyReader)
-}
-
-// NewPortDataStatisticsRequestWithBody generates requests for PortDataStatistics with any type of body
-func NewPortDataStatisticsRequestWithBody(server string, params *PortDataStatisticsParams, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/webhook/statistics")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	if params != nil {
-
-		var headerParam0 string
-
-		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "X-TinySystems-Node-Name", runtime.ParamLocationHeader, params.XTinySystemsNodeName)
-		if err != nil {
-			return nil, err
-		}
-
-		req.Header.Set("X-TinySystems-Node-Name", headerParam0)
-
-		var headerParam1 string
-
-		headerParam1, err = runtime.StyleParamWithLocation("simple", false, "X-TinySystems-Flow-Id", runtime.ParamLocationHeader, params.XTinySystemsFlowId)
-		if err != nil {
-			return nil, err
-		}
-
-		req.Header.Set("X-TinySystems-Flow-Id", headerParam1)
-
-	}
-
-	return req, nil
-}
-
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -595,11 +492,6 @@ type ClientWithResponsesInterface interface {
 
 	// PortDataWebhookWithBodyWithResponse request with any body
 	PortDataWebhookWithBodyWithResponse(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PortDataWebhookResponse, error)
-
-	// PortDataStatisticsWithBodyWithResponse request with any body
-	PortDataStatisticsWithBodyWithResponse(ctx context.Context, params *PortDataStatisticsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PortDataStatisticsResponse, error)
-
-	PortDataStatisticsWithResponse(ctx context.Context, params *PortDataStatisticsParams, body PortDataStatisticsJSONRequestBody, reqEditors ...RequestEditorFn) (*PortDataStatisticsResponse, error)
 }
 
 type PublishModuleResponse struct {
@@ -687,27 +579,6 @@ func (r PortDataWebhookResponse) StatusCode() int {
 	return 0
 }
 
-type PortDataStatisticsResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-}
-
-// Status returns HTTPResponse.Status
-func (r PortDataStatisticsResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r PortDataStatisticsResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 // PublishModuleWithBodyWithResponse request with arbitrary body returning *PublishModuleResponse
 func (c *ClientWithResponses) PublishModuleWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishModuleResponse, error) {
 	rsp, err := c.PublishModuleWithBody(ctx, contentType, body, reqEditors...)
@@ -758,23 +629,6 @@ func (c *ClientWithResponses) PortDataWebhookWithBodyWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParsePortDataWebhookResponse(rsp)
-}
-
-// PortDataStatisticsWithBodyWithResponse request with arbitrary body returning *PortDataStatisticsResponse
-func (c *ClientWithResponses) PortDataStatisticsWithBodyWithResponse(ctx context.Context, params *PortDataStatisticsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PortDataStatisticsResponse, error) {
-	rsp, err := c.PortDataStatisticsWithBody(ctx, params, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePortDataStatisticsResponse(rsp)
-}
-
-func (c *ClientWithResponses) PortDataStatisticsWithResponse(ctx context.Context, params *PortDataStatisticsParams, body PortDataStatisticsJSONRequestBody, reqEditors ...RequestEditorFn) (*PortDataStatisticsResponse, error) {
-	rsp, err := c.PortDataStatistics(ctx, params, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePortDataStatisticsResponse(rsp)
 }
 
 // ParsePublishModuleResponse parses an HTTP response from a PublishModuleWithResponse call
@@ -851,22 +705,6 @@ func ParsePortDataWebhookResponse(rsp *http.Response) (*PortDataWebhookResponse,
 	return response, nil
 }
 
-// ParsePortDataStatisticsResponse parses an HTTP response from a PortDataStatisticsWithResponse call
-func ParsePortDataStatisticsResponse(rsp *http.Response) (*PortDataStatisticsResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &PortDataStatisticsResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	return response, nil
-}
-
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 
@@ -881,9 +719,6 @@ type ServerInterface interface {
 
 	// (POST /webhook/port-data)
 	PortDataWebhook(w http.ResponseWriter, r *http.Request, params PortDataWebhookParams)
-
-	// (POST /webhook/statistics)
-	PortDataStatistics(w http.ResponseWriter, r *http.Request, params PortDataStatisticsParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -1052,76 +887,6 @@ func (siw *ServerInterfaceWrapper) PortDataWebhook(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
-// PortDataStatistics operation middleware
-func (siw *ServerInterfaceWrapper) PortDataStatistics(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params PortDataStatisticsParams
-
-	headers := r.Header
-
-	// ------------- Required header parameter "X-TinySystems-Node-Name" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-TinySystems-Node-Name")]; found {
-		var XTinySystemsNodeName string
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-TinySystems-Node-Name", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithLocation("simple", false, "X-TinySystems-Node-Name", runtime.ParamLocationHeader, valueList[0], &XTinySystemsNodeName)
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-TinySystems-Node-Name", Err: err})
-			return
-		}
-
-		params.XTinySystemsNodeName = XTinySystemsNodeName
-
-	} else {
-		err = fmt.Errorf("Header parameter X-TinySystems-Node-Name is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-TinySystems-Node-Name", Err: err})
-		return
-	}
-
-	// ------------- Required header parameter "X-TinySystems-Flow-Id" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-TinySystems-Flow-Id")]; found {
-		var XTinySystemsFlowId string
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-TinySystems-Flow-Id", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithLocation("simple", false, "X-TinySystems-Flow-Id", runtime.ParamLocationHeader, valueList[0], &XTinySystemsFlowId)
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-TinySystems-Flow-Id", Err: err})
-			return
-		}
-
-		params.XTinySystemsFlowId = XTinySystemsFlowId
-
-	} else {
-		err = fmt.Errorf("Header parameter X-TinySystems-Flow-Id is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-TinySystems-Flow-Id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PortDataStatistics(w, r, params)
-	}))
-
-	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
-		handler = siw.HandlerMiddlewares[i](handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -1243,32 +1008,28 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/webhook/port-data", wrapper.PortDataWebhook).Methods("POST")
 
-	r.HandleFunc(options.BaseURL+"/webhook/statistics", wrapper.PortDataStatistics).Methods("POST")
-
 	return r
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/8xXT2/jthP9KgR/P6AXOU7bm2+bTYOmwG6DTbpbIPWBFscW1xKp5YwcGIG+e8E/iqSI",
-	"9nrbGu3NFmeGM2/evJGeeW6q2mjQhHzxzDEvoBL+51WjSnnXYPFrTcpo/6y2pgZLCsI/gfhkrHS/aV8D",
-	"X3Akq/SGtxm3UJvkAYlN8nmDYLWoIHHow31plAXJF4+9ZdanEC8M4ZdZF8GsPkNOLvx7I+GeBCkkleM7",
-	"Ubt7hJTKFSfKu2FlbcL/rlmVCou3HVxTOCRgbpUHK1mg0us0Igeq9rX4yIqgwrRFeCCsFfsJThGjYV7L",
-	"w5W9M7Ip4QN8aQAT1Y158pLR/y2s+YL/b96fzyOJ5hPIJglnZwBtBxbT0dLwdPbZsMQTcMKmTMBU+dMT",
-	"kQmhPsYE2oybftSOuU9Gs22/lu/HHpVxwkqeCV7lhvIVxilYf6ulIBhleZCEIdkRZ3jwZNGV3V7z7LAa",
-	"jV1vK7EB1gnHAaFKubij7JT6j4pSm3GEvLGK9veus6HGKxAW7JuGCvdv5f/dGFsJ4gv+y6cHngWVdpHC",
-	"aZ9KQVS71K9hB6UD7sFsQb8I+2GXdjBq44I/waowZsve3N1mLMatQJN74KIocnTnD0rv2f0enS7Eoxem",
-	"8O8vLi8uA79Bi1rxBf/RP3ICToUvey5hR8aUOK8Db2f9KNUmkGGc2QfYKCSwyIIlE1oyC9RYjSy3IEGT",
-	"EiWytbFM0XfI6gaLP9ykO2iEC3Mr+WI8KDx0EZCujNwH5dMUBV/Udaly7zn/jKZHVnzTxHf89rCPi4p2",
-	"XUkxFT6kFtkGPNewNhoDaX64vDxXql7nEpneN3kOiCMa88Xj84R8j8t22e2yR961mS+dY9/1xstAbPps",
-	"oDLp5gfV6GCK5uxJUcGUH1HHZjc0yuhEyxOic6bGH5G3BKgTMcum5ZxKhnO0qwBRBmHaQKIrP/tjlheQ",
-	"bxloWRulaQJ+sHrrjPjfSH2QZUjLXxsTfQqyNa+NpZkUJI7pSA5qB8icLXO2bG1NxQQjJ2pkRb4Fm9IN",
-	"Y+lakIgS6dXMigqcJnlolQtfgJBecMNK5b/PnFZGqZy5GLObpixn78OqHLc2G7Bssm5OuuCmNE+zW3mG",
-	"yD/JDYTIRyO92p9rljfWugXikQ6nK0AmNANrjbvulMuj6eGrl6fOs8kJaIZkQVTjuV53a3eltLD7xMqf",
-	"6rfjUDD3Bf7Dwzp8ORgPaiQ8vuI/vnzynDAAvfFQb75xGvqPrL80EO477b80C8vzrIXp52hqxfb92MKe",
-	"7UTZAItvj/8Gr77uhWB3XbPHV79+QWTBlGe8sWV8D8XFfC5qdeGYhsH0QhneLts/AwAA//8kbl0NqBAA",
-	"AA==",
+	"H4sIAAAAAAAC/7RWwW7jNhD9FYLtoQVky9jefNtsGtQF2gabdLeA6wMtji1uJJI7JB0Ygf69IClFUkR7",
+	"XbS+2eJw+ObNm0e+0ELVWkmQ1tDlCzVFCTULP2+cqPi9M+Uf2golwzeNSgNaAfEfM+ZZIfe/7VEDXVJj",
+	"Ucg9bTKKoFVywbJ98rszgJLVkFgM6b46gcDpct1HZj2E9sCYfpN1GdT2CxTWp79320qY8kNX7rQcDqZA",
+	"EYpNAhRyl67oBOqAJWQWFmqTjogfGCI7TupsaxziOlPZb4q7Cj7CVwcmUd24z6+IvkfY0SX9Lu/X81YE",
+	"+YSyCeDsCqQdAE06W5qeLj4blngBT8ZVCZrqsHohMzHVpxZAk1HVj8q57ZPRappv4f3UszIGLPiV6BV+",
+	"qN5wnKL1T82ZhRHKkyKMYEeaoXEnabeS1S3NTrvJeOuqZnsg3eCfMJrUFr+UXVL/WVNpMmqgcCjs8cF3",
+	"NtZ4AwwB3ztb+n/b8O9OYc0sXdJfPz/SLLqszxRXeyiltdpDv4UDVJ64R/UE8tWYT29pBqM2LjioqCDr",
+	"RyGP5OFo/OBvfvC7zDLPrZBHEz/Ohcp/JO/vVz63sH4I6HBTu/SqH7qYv5svoupBMi3okv40X8wXwZZt",
+	"GcjIORysUpXJdVTzrB8wraJExng/wl4YC2hIjCRMcoJgHUpDCgQO0gpWGbJTSLQz5d9+9D1XzGdY8a7m",
+	"bnJobCsYe6P4MVqhtO0NwLSuRBF25l+M6qlm/8oCOsGHPiT4N2VXTQuFDrVm0UEQn9FKmqiid4vFtaAG",
+	"40sgfXBFAcaMdE2X65eJGtebZtNdbmvadZhu/Ma+4S74Qtvv2cB20n2PNtLR1IaTZ2FLIsLMenn7KRJK",
+	"JlqecKErNf6M3yVInbhbNi3nUjFco10lsCo61R4SXfklLJOihOKJgORaCWkn5MeoDz6I/gfoA5QRVji2",
+	"BfoM21Kpp1wrtDPOLDtnIQWIAxjiY4mPJTtUNWHE2x2xyIonwJRvKLS3zLLP8axgZMhq8HYUqBU+fQmM",
+	"BweOdyz9a+ZtsnXJmc8xu3NVNfs93p3j1mYDlU3un4sOuKvU82zFr5D5Z76HmPlspjcX6o4UDhFky3Rc",
+	"3YIhTBJAVP64Sw5vQ08fvbl0nlVhwc6MRWD1eK533T28FZLhMfEGmPq311AMDwX+z8M6fC2MB7UVfBjU",
+	"b+8ygIdOpeOj397hJIbSjDqs2geEfwowLebj5wBtNs0/AQAA//8ruCKgIQ4AAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
