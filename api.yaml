@@ -19,46 +19,6 @@ paths:
       responses:
         200:
           description: Success
-  /webhook/port-data:
-    post:
-      operationId: port-data-webhook
-      tags:
-        - webhooks
-      description: |
-        Receives port data from a tiny tracker
-      security:
-        - BearerAuth: []
-      requestBody:
-        description: Port binary data
-        required: true
-        content:
-          application/octet-stream:
-            schema:
-              type: string
-              format: binary
-      parameters:
-        - in: header
-          name: X-TinySystems-Port-Full-Name
-          schema:
-            type: string
-          required: true
-        - in: header
-          name: X-TinySystems-Flow-Id
-          schema:
-            type: string
-          required: true
-        - in: header
-          name: X-TinySystems-Edge-Id
-          schema:
-            type: string
-        - in: header
-          name: X-TinySystems-Error
-          description: If current data describes an error
-          schema:
-            type: string
-      responses:
-        200:
-          description: Success
   /devtools/publish-module:
     post:
       operationId: publish-module

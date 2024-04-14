@@ -18,11 +18,9 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gorilla/mux"
-	"github.com/oapi-codegen/runtime"
 )
 
 const (
-	BearerAuthScopes     = "BearerAuth.Scopes"
 	DeveloperTokenScopes = "DeveloperToken.Scopes"
 )
 
@@ -74,16 +72,6 @@ type UpdateModuleVersionRequest struct {
 
 	// Tag Image tag
 	Tag string `json:"tag"`
-}
-
-// PortDataWebhookParams defines parameters for PortDataWebhook.
-type PortDataWebhookParams struct {
-	XTinySystemsPortFullName string  `json:"X-TinySystems-Port-Full-Name"`
-	XTinySystemsFlowId       string  `json:"X-TinySystems-Flow-Id"`
-	XTinySystemsEdgeId       *string `json:"X-TinySystems-Edge-Id,omitempty"`
-
-	// XTinySystemsError If current data describes an error
-	XTinySystemsError *string `json:"X-TinySystems-Error,omitempty"`
 }
 
 // PublishModuleJSONRequestBody defines body for PublishModule for application/json ContentType.
@@ -177,9 +165,6 @@ type ClientInterface interface {
 
 	// HealthCheck request
 	HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// PortDataWebhookWithBody request with any body
-	PortDataWebhookWithBody(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) PublishModuleWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -232,18 +217,6 @@ func (c *Client) UpdateModuleVersion(ctx context.Context, body UpdateModuleVersi
 
 func (c *Client) HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewHealthCheckRequest(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) PortDataWebhookWithBody(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPortDataWebhookRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -361,79 +334,6 @@ func NewHealthCheckRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewPortDataWebhookRequestWithBody generates requests for PortDataWebhook with any type of body
-func NewPortDataWebhookRequestWithBody(server string, params *PortDataWebhookParams, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/webhook/port-data")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	if params != nil {
-
-		var headerParam0 string
-
-		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "X-TinySystems-Port-Full-Name", runtime.ParamLocationHeader, params.XTinySystemsPortFullName)
-		if err != nil {
-			return nil, err
-		}
-
-		req.Header.Set("X-TinySystems-Port-Full-Name", headerParam0)
-
-		var headerParam1 string
-
-		headerParam1, err = runtime.StyleParamWithLocation("simple", false, "X-TinySystems-Flow-Id", runtime.ParamLocationHeader, params.XTinySystemsFlowId)
-		if err != nil {
-			return nil, err
-		}
-
-		req.Header.Set("X-TinySystems-Flow-Id", headerParam1)
-
-		if params.XTinySystemsEdgeId != nil {
-			var headerParam2 string
-
-			headerParam2, err = runtime.StyleParamWithLocation("simple", false, "X-TinySystems-Edge-Id", runtime.ParamLocationHeader, *params.XTinySystemsEdgeId)
-			if err != nil {
-				return nil, err
-			}
-
-			req.Header.Set("X-TinySystems-Edge-Id", headerParam2)
-		}
-
-		if params.XTinySystemsError != nil {
-			var headerParam3 string
-
-			headerParam3, err = runtime.StyleParamWithLocation("simple", false, "X-TinySystems-Error", runtime.ParamLocationHeader, *params.XTinySystemsError)
-			if err != nil {
-				return nil, err
-			}
-
-			req.Header.Set("X-TinySystems-Error", headerParam3)
-		}
-
-	}
-
-	return req, nil
-}
-
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -489,9 +389,6 @@ type ClientWithResponsesInterface interface {
 
 	// HealthCheckWithResponse request
 	HealthCheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthCheckResponse, error)
-
-	// PortDataWebhookWithBodyWithResponse request with any body
-	PortDataWebhookWithBodyWithResponse(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PortDataWebhookResponse, error)
 }
 
 type PublishModuleResponse struct {
@@ -558,27 +455,6 @@ func (r HealthCheckResponse) StatusCode() int {
 	return 0
 }
 
-type PortDataWebhookResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-}
-
-// Status returns HTTPResponse.Status
-func (r PortDataWebhookResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r PortDataWebhookResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 // PublishModuleWithBodyWithResponse request with arbitrary body returning *PublishModuleResponse
 func (c *ClientWithResponses) PublishModuleWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishModuleResponse, error) {
 	rsp, err := c.PublishModuleWithBody(ctx, contentType, body, reqEditors...)
@@ -620,15 +496,6 @@ func (c *ClientWithResponses) HealthCheckWithResponse(ctx context.Context, reqEd
 		return nil, err
 	}
 	return ParseHealthCheckResponse(rsp)
-}
-
-// PortDataWebhookWithBodyWithResponse request with arbitrary body returning *PortDataWebhookResponse
-func (c *ClientWithResponses) PortDataWebhookWithBodyWithResponse(ctx context.Context, params *PortDataWebhookParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PortDataWebhookResponse, error) {
-	rsp, err := c.PortDataWebhookWithBody(ctx, params, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParsePortDataWebhookResponse(rsp)
 }
 
 // ParsePublishModuleResponse parses an HTTP response from a PublishModuleWithResponse call
@@ -689,22 +556,6 @@ func ParseHealthCheckResponse(rsp *http.Response) (*HealthCheckResponse, error) 
 	return response, nil
 }
 
-// ParsePortDataWebhookResponse parses an HTTP response from a PortDataWebhookWithResponse call
-func ParsePortDataWebhookResponse(rsp *http.Response) (*PortDataWebhookResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &PortDataWebhookResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	return response, nil
-}
-
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 
@@ -716,9 +567,6 @@ type ServerInterface interface {
 
 	// (GET /health)
 	HealthCheck(w http.ResponseWriter, r *http.Request)
-
-	// (POST /webhook/port-data)
-	PortDataWebhook(w http.ResponseWriter, r *http.Request, params PortDataWebhookParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -770,114 +618,6 @@ func (siw *ServerInterfaceWrapper) HealthCheck(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.HealthCheck(w, r)
-	}))
-
-	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
-		handler = siw.HandlerMiddlewares[i](handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// PortDataWebhook operation middleware
-func (siw *ServerInterfaceWrapper) PortDataWebhook(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params PortDataWebhookParams
-
-	headers := r.Header
-
-	// ------------- Required header parameter "X-TinySystems-Port-Full-Name" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-TinySystems-Port-Full-Name")]; found {
-		var XTinySystemsPortFullName string
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-TinySystems-Port-Full-Name", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithLocation("simple", false, "X-TinySystems-Port-Full-Name", runtime.ParamLocationHeader, valueList[0], &XTinySystemsPortFullName)
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-TinySystems-Port-Full-Name", Err: err})
-			return
-		}
-
-		params.XTinySystemsPortFullName = XTinySystemsPortFullName
-
-	} else {
-		err = fmt.Errorf("Header parameter X-TinySystems-Port-Full-Name is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-TinySystems-Port-Full-Name", Err: err})
-		return
-	}
-
-	// ------------- Required header parameter "X-TinySystems-Flow-Id" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-TinySystems-Flow-Id")]; found {
-		var XTinySystemsFlowId string
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-TinySystems-Flow-Id", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithLocation("simple", false, "X-TinySystems-Flow-Id", runtime.ParamLocationHeader, valueList[0], &XTinySystemsFlowId)
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-TinySystems-Flow-Id", Err: err})
-			return
-		}
-
-		params.XTinySystemsFlowId = XTinySystemsFlowId
-
-	} else {
-		err = fmt.Errorf("Header parameter X-TinySystems-Flow-Id is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-TinySystems-Flow-Id", Err: err})
-		return
-	}
-
-	// ------------- Optional header parameter "X-TinySystems-Edge-Id" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-TinySystems-Edge-Id")]; found {
-		var XTinySystemsEdgeId string
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-TinySystems-Edge-Id", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithLocation("simple", false, "X-TinySystems-Edge-Id", runtime.ParamLocationHeader, valueList[0], &XTinySystemsEdgeId)
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-TinySystems-Edge-Id", Err: err})
-			return
-		}
-
-		params.XTinySystemsEdgeId = &XTinySystemsEdgeId
-
-	}
-
-	// ------------- Optional header parameter "X-TinySystems-Error" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-TinySystems-Error")]; found {
-		var XTinySystemsError string
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-TinySystems-Error", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithLocation("simple", false, "X-TinySystems-Error", runtime.ParamLocationHeader, valueList[0], &XTinySystemsError)
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-TinySystems-Error", Err: err})
-			return
-		}
-
-		params.XTinySystemsError = &XTinySystemsError
-
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PortDataWebhook(w, r, params)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -1006,30 +746,25 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/health", wrapper.HealthCheck).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/webhook/port-data", wrapper.PortDataWebhook).Methods("POST")
-
 	return r
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
