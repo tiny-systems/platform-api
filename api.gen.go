@@ -34,10 +34,20 @@ type BuildPushOptions struct {
 
 // PublishComponent defines model for PublishComponent.
 type PublishComponent struct {
-	Description string    `json:"description"`
-	Info        *string   `json:"info,omitempty"`
-	Name        string    `json:"name"`
-	Tags        *[]string `json:"tags,omitempty"`
+	Description string                  `json:"description"`
+	Info        *string                 `json:"info,omitempty"`
+	Name        string                  `json:"name"`
+	Ports       *[]PublishComponentPort `json:"ports,omitempty"`
+	Tags        *[]string               `json:"tags,omitempty"`
+}
+
+// PublishComponentPort defines model for PublishComponentPort.
+type PublishComponentPort struct {
+	Label    *string                 `json:"label,omitempty"`
+	Name     string                  `json:"name"`
+	Position *int                    `json:"position,omitempty"`
+	Schema   *map[string]interface{} `json:"schema,omitempty"`
+	Source   bool                    `json:"source"`
 }
 
 // PublishModuleRequest defines model for PublishModuleRequest.
@@ -752,19 +762,20 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

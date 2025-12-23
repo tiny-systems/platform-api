@@ -135,9 +135,30 @@ components:
           type: array
           items:
             type: string
+        ports:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublishComponentPort'
       required:
         - name
         - description
+    PublishComponentPort:
+      type: object
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        source:
+          type: boolean
+        position:
+          type: integer
+        schema:
+          type: object
+          additionalProperties: {}
+      required:
+        - name
+        - source
     UpdateModuleVersionRequest:
       type: object
       properties:
