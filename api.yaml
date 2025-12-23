@@ -156,6 +156,9 @@ components:
         schema:
           type: object
           additionalProperties: {}
+        default_data:
+          type: object
+          additionalProperties: {}
       required:
         - name
         - source
