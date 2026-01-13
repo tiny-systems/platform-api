@@ -118,10 +118,42 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PublishComponent'
+        requirements:
+          $ref: '#/components/schemas/ModuleRequirements'
       required:
         - name
         - version
         - components
+    ModuleRequirements:
+      type: object
+      properties:
+        rbac:
+          $ref: '#/components/schemas/RBACRequirements'
+    RBACRequirements:
+      type: object
+      properties:
+        enableKubernetesResourceAccess:
+          type: boolean
+          description: Enable access to pods, services, deployments, ingresses
+        extraRules:
+          type: array
+          items:
+            $ref: '#/components/schemas/RBACRule'
+    RBACRule:
+      type: object
+      properties:
+        apiGroups:
+          type: array
+          items:
+            type: string
+        resources:
+          type: array
+          items:
+            type: string
+        verbs:
+          type: array
+          items:
+            type: string
     PublishComponent:
       type: object
       properties:

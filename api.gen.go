@@ -32,6 +32,11 @@ type BuildPushOptions struct {
 	Username string `json:"username"`
 }
 
+// ModuleRequirements defines model for ModuleRequirements.
+type ModuleRequirements struct {
+	Rbac *RBACRequirements `json:"rbac,omitempty"`
+}
+
 // PublishComponent defines model for PublishComponent.
 type PublishComponent struct {
 	Description string                  `json:"description"`
@@ -53,11 +58,12 @@ type PublishComponentPort struct {
 
 // PublishModuleRequest defines model for PublishModuleRequest.
 type PublishModuleRequest struct {
-	Components  []PublishComponent `json:"components"`
-	Description *string            `json:"description,omitempty"`
-	Info        *string            `json:"info,omitempty"`
-	Name        string             `json:"name"`
-	Version     string             `json:"version"`
+	Components   []PublishComponent  `json:"components"`
+	Description  *string             `json:"description,omitempty"`
+	Info         *string             `json:"info,omitempty"`
+	Name         string              `json:"name"`
+	Requirements *ModuleRequirements `json:"requirements,omitempty"`
+	Version      string              `json:"version"`
 }
 
 // PublishModuleResult defines model for PublishModuleResult.
@@ -71,6 +77,20 @@ type PublishModuleVersion struct {
 	Id      string `json:"id"`
 	Name    string `json:"name"`
 	Version string `json:"version"`
+}
+
+// RBACRequirements defines model for RBACRequirements.
+type RBACRequirements struct {
+	// EnableKubernetesResourceAccess Enable access to pods, services, deployments, ingresses
+	EnableKubernetesResourceAccess *bool       `json:"enableKubernetesResourceAccess,omitempty"`
+	ExtraRules                     *[]RBACRule `json:"extraRules,omitempty"`
+}
+
+// RBACRule defines model for RBACRule.
+type RBACRule struct {
+	ApiGroups *[]string `json:"apiGroups,omitempty"`
+	Resources *[]string `json:"resources,omitempty"`
+	Verbs     *[]string `json:"verbs,omitempty"`
 }
 
 // UpdateModuleVersionRequest defines model for UpdateModuleVersionRequest.
@@ -602,8 +622,8 @@ func (siw *ServerInterfaceWrapper) PublishModule(w http.ResponseWriter, r *http.
 		siw.Handler.PublishModule(w, r)
 	}))
 
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
 	}
 
 	handler.ServeHTTP(w, r)
@@ -622,8 +642,8 @@ func (siw *ServerInterfaceWrapper) UpdateModuleVersion(w http.ResponseWriter, r 
 		siw.Handler.UpdateModuleVersion(w, r)
 	}))
 
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
 	}
 
 	handler.ServeHTTP(w, r)
@@ -636,8 +656,8 @@ func (siw *ServerInterfaceWrapper) HealthCheck(w http.ResponseWriter, r *http.Re
 		siw.Handler.HealthCheck(w, r)
 	}))
 
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
 	}
 
 	handler.ServeHTTP(w, r)
@@ -768,21 +788,23 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/7RWTW/rNhD8KwTbQwvoWcbrTbd8oKgLFDWSND24RkGLa4uJTDJcMoER6L8XJKVIsmnX",
-	"aZ9vlri7nJ2dHfmdlmqrlQRpkRbvFMsKtiz8vHai5nOH1e/aCiXDO22UBmMFxCeG+KYM97/tTgMtKFoj",
-	"5IY2GTWgVfLAsk3yvUMwkm0hcRjKvThhgNNi0UdmPYT2wlh+mXUV1OoJSuvLz92qFljddO0etsMBSyNC",
-	"s0mAQq7THR1BnVGtTKRVWNiGH98bWNOCfpf3tOct5/k+wrkyAXlblhnDdi2B46KHFI8y9thrmRt2ew5f",
-	"AU2CszVztf2bM8v8M+Nc+JKsng/jmsQFNVtB/Vk+UeyNR0gLGzD+NPL4SRSonCmHt62UqoHJY7S18ScY",
-	"+01xV8MdvDjABGPjfftPwkiJ4tuL9xUMpqulmenis2GLZ/CErk7QtA2nZzITSz22AJqMqt6yTqUfWFzT",
-	"/Bvex56VMWDBL0Sv8Oa2x3GK1j80ZxZGKI+KMIIdaYbGTNKmktktzY67+jh1tmUbIJ0BHzH8VIo/ys7p",
-	"/6S5+zWG0hlhd/d+srHHa2AGzJWzlX9ahaefldkySwv6658PtHWMsPThtIdSWas99Ft4hdoT96CeQX58",
-	"II+nNINVGzccVFSSxYOQO3K/Q7/4yx98FhZ5boXcYXw5ESr/kVzNZ762sH4J6DCpPfrQD51Ovk6mUfUg",
-	"mRa0oD9NppNp+DzaKpCRc3i1StWY66jmL/2CaRUlMsZ7BxuBFgySGEmY5MSAdUYiKQ1wkFawGslaGaId",
-	"Vn/51fdcMV9hxrueu82hcayA9lrxXbRCadsvMdO6FmXIzJ9Q9VSzT1lAJ/gwhwT/WHXdtFDoUGvWOAji",
-	"Q60kRhV9nU4vBTUYXwLpvStLQBzpmhaL9wM1LpbNsvs7sKDdhOnSJ/YDd8EX2nl/GdhOeu7RRjqa2nDy",
-	"JmxFRNhZL2+/RULJxMgTLnShwZ/wuwSpB+6WHbZzrhguMa4KWB2dagOJqfwSjklZQflMQHKthLQH5Meo",
-	"Gx9E/wf0AcoIK1zrge63OPTY2B6C8ZoJp+PL9j2MxFCaUWfq1kC9FTItJmM7pM2y+ScAAP//0w6DpqkM",
-	"AAA=",
+	"H4sIAAAAAAAC/7RWTW/jNhD9KwTbQwtobWN78y3J9iMtigZO2h5co6ClicVdmmRnSG+NwP+9ICmtJIt2",
+	"7XZzSmTODN+8N3zkCy/N1hoN2hGfv3Aqa9iK+O+tl6p68FT/Yp00Ov5m0VhAJyF9CaKPBqvwv9tb4HNO",
+	"DqXe8EPBEazJLjixyf7uCVCLLWQWY7m/vESo+HzZRRYdhGbDVH5VtBXM+j2ULpT/2VRewSKV2bb9DhvC",
+	"tSjD3y8RnvmcfzHtyJk2zEwXtzd3gyoB3Wi3B79Wkuq7Nn+8VwVUoozUZumQ+jnP3wmOCm4Npqakgy39",
+	"Wx/HCB8MRuRNWYEo9o1cw6JjQQcZR1o1OvW7XV3AV0ST4exZeOX+rIQT4VtUlQwlhXrox+UEUWIN6lo+",
+	"SR7JI7WDDWBYTTxeiYKMx7K/29oYBUKfoq2JP8NYN9ZAGcaGp/s/DUZuKD7/8OLRwTyHMHOUDwXfAVIe",
+	"T57bNr7ok3QB0+RVhuhtXL2Q21TqtwbAoeCms9hz6SNLPuc9w01GgGV1nUAX0yuDGR9xnKN1ZKQjiKDF",
+	"WsFPfg2owQEtIJ2Hm7IEGpso/zbGMxGXmTPMmooKRoA7WQIVrAKrzD7uVjCpNwhEQLwYncaCw98OxcIr",
+	"uPzgxIbCEOQ8Md9+MzLDtoWV36Px9irbDRokdq5M2wGurzX4UTO/2ko4GEzcSUtKgzdULmWyJpXdv+s0",
+	"Gb8ohqn3W7EB1l7+Jx4buZSwVFwyy2cfFsHUofQo3f4xzEHq8RYEAt54V4evdfz6zuBWOD7nP/7+xJv7",
+	"Iw5dXO2g1M7ZAP0d7EAF4p7MB9CfHmenUw494x02HB2hZMsnqffscU9B6dVXIYvm06mTek/px4k006/Z",
+	"zcN9qC1dmE7eT2qWPnkBn03eTmbJwUALK/mcfzOZTWbxaebqSMa0gp0zRtHUJmd605mlNWlEhngXsJHk",
+	"AImlSCZ0xRCcR02sRKhAOykUsWeDzHqq/wg2HrgSocJ91fbcuiBPsgK5W1Pt08WoXfMuE9YqWcbM6Xsy",
+	"HdXiKjtvBz7qkOGf6rabBgrvz5pDD+kQW6MpTdHb2ey1oMZLLIP00Sdv7c81ny9fRtO4XB1W7eNwyVuF",
+	"+SokdoL76AuN3m96V0he92QjLU1NOPsoXc1kPLNhvMMpkkZnJM+40CsJf8bvMqSO3K0Yt3PpMLyGXDUI",
+	"lZxqAxlVfojLrKyh/MBAV9ZI7Ubkp6i7EMT/B/QeygQrbhuAHrfY99jUXrjoASmuDjc79jCWQnnBParG",
+	"QIMVCisnQzvkh9XhnwAAAP//p012LiUPAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
@@ -856,4 +878,3 @@ func GetSwagger() (swagger *openapi3.T, err error) {
 	}
 	return
 }
-// Updated Tue Dec 23 17:50:14 GMT 2025
