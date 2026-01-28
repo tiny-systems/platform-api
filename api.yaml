@@ -114,6 +114,9 @@ components:
           type: string
         description:
           type: string
+        sdk_version:
+          type: string
+          description: SDK version used to build this module
         components:
           type: array
           items:
