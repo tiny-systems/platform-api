@@ -42,6 +42,35 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PublishModuleResult"
+  /solutions/export:
+    get:
+      operationId: export-solution
+      tags:
+        - solutions
+      summary: Export solution using one-time token
+      description: |
+        Returns solution export JSON. Requires a valid one-time token
+        obtained via gRPC CreateExportToken.
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: One-time export token
+      responses:
+        200:
+          description: Solution export JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        401:
+          description: Invalid or expired token
+        404:
+          description: Solution not found
   /devtools/update-module-version:
     post:
       operationId: update-module-version
