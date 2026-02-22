@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gorilla/mux"
@@ -22,8 +23,14 @@ import (
 )
 
 const (
+	BearerAuthScopes     = "BearerAuth.Scopes"
 	DeveloperTokenScopes = "DeveloperToken.Scopes"
 )
+
+// AddMessageRequest defines model for AddMessageRequest.
+type AddMessageRequest struct {
+	Content string `json:"content"`
+}
 
 // BuildPushOptions defines model for BuildPushOptions.
 type BuildPushOptions struct {
@@ -31,6 +38,25 @@ type BuildPushOptions struct {
 	Repo     string `json:"repo"`
 	Tag      string `json:"tag"`
 	Username string `json:"username"`
+}
+
+// CreateTicketRequest defines model for CreateTicketRequest.
+type CreateTicketRequest struct {
+	Email   string  `json:"email"`
+	Message string  `json:"message"`
+	Name    *string `json:"name,omitempty"`
+	Subject string  `json:"subject"`
+}
+
+// CreateTicketResponse defines model for CreateTicketResponse.
+type CreateTicketResponse struct {
+	Ticket *Ticket `json:"ticket,omitempty"`
+
+	// TicketUrl Signed URL for accessing this ticket
+	TicketUrl *string `json:"ticket_url,omitempty"`
+
+	// TicketsUrl Signed URL for listing all tickets for this email
+	TicketsUrl *string `json:"tickets_url,omitempty"`
 }
 
 // ModuleRequirements defines model for ModuleRequirements.
@@ -97,6 +123,54 @@ type RBACRule struct {
 	Verbs     *[]string `json:"verbs,omitempty"`
 }
 
+// Ticket defines model for Ticket.
+type Ticket struct {
+	AssigneeName *string    `json:"assignee_name,omitempty"`
+	AuthorEmail  *string    `json:"author_email,omitempty"`
+	AuthorName   *string    `json:"author_name,omitempty"`
+	ClosedAt     *time.Time `json:"closed_at,omitempty"`
+	CreatedAt    *time.Time `json:"created_at,omitempty"`
+	Priority     *string    `json:"priority,omitempty"`
+	Status       *string    `json:"status,omitempty"`
+	Subject      *string    `json:"subject,omitempty"`
+	Tags         *[]string  `json:"tags,omitempty"`
+	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
+	Uuid         *string    `json:"uuid,omitempty"`
+}
+
+// TicketDetailResponse defines model for TicketDetailResponse.
+type TicketDetailResponse struct {
+	Messages *[]TicketMessage `json:"messages,omitempty"`
+	Ticket   *Ticket          `json:"ticket,omitempty"`
+}
+
+// TicketListResponse defines model for TicketListResponse.
+type TicketListResponse struct {
+	Tickets *[]Ticket `json:"tickets,omitempty"`
+	Total   *int      `json:"total,omitempty"`
+}
+
+// TicketMessage defines model for TicketMessage.
+type TicketMessage struct {
+	AuthorName *string                 `json:"author_name,omitempty"`
+	AuthorType *string                 `json:"author_type,omitempty"`
+	Content    *string                 `json:"content,omitempty"`
+	CreatedAt  *time.Time              `json:"created_at,omitempty"`
+	Metadata   *map[string]interface{} `json:"metadata,omitempty"`
+	Uuid       *string                 `json:"uuid,omitempty"`
+}
+
+// TicketStats defines model for TicketStats.
+type TicketStats struct {
+	AiSuggested    *int `json:"ai_suggested,omitempty"`
+	Closed         *int `json:"closed,omitempty"`
+	Open           *int `json:"open,omitempty"`
+	Resolved       *int `json:"resolved,omitempty"`
+	Total          *int `json:"total,omitempty"`
+	WaitingSupport *int `json:"waiting_support,omitempty"`
+	WaitingUser    *int `json:"waiting_user,omitempty"`
+}
+
 // UpdateModuleVersionRequest defines model for UpdateModuleVersionRequest.
 type UpdateModuleVersionRequest struct {
 	// Id Module Version ID
@@ -109,10 +183,56 @@ type UpdateModuleVersionRequest struct {
 	Tag string `json:"tag"`
 }
 
+// UpdateTicketRequest defines model for UpdateTicketRequest.
+type UpdateTicketRequest struct {
+	AssigneeUserId *int    `json:"assignee_user_id,omitempty"`
+	Priority       *string `json:"priority,omitempty"`
+	Status         *string `json:"status,omitempty"`
+}
+
 // ExportSolutionParams defines parameters for ExportSolution.
 type ExportSolutionParams struct {
 	// Token One-time export token
 	Token string `form:"token" json:"token"`
+}
+
+// ListAdminSupportTicketsParams defines parameters for ListAdminSupportTickets.
+type ListAdminSupportTicketsParams struct {
+	Status   *string `form:"status,omitempty" json:"status,omitempty"`
+	Priority *string `form:"priority,omitempty" json:"priority,omitempty"`
+	Search   *string `form:"search,omitempty" json:"search,omitempty"`
+	Limit    *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset   *int    `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ListSupportTicketsParams defines parameters for ListSupportTickets.
+type ListSupportTicketsParams struct {
+	Email   string `form:"email" json:"email"`
+	Expires string `form:"expires" json:"expires"`
+	Sig     string `form:"sig" json:"sig"`
+	Limit   *int   `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset  *int   `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// GetSupportTicketParams defines parameters for GetSupportTicket.
+type GetSupportTicketParams struct {
+	Email   string `form:"email" json:"email"`
+	Expires string `form:"expires" json:"expires"`
+	Sig     string `form:"sig" json:"sig"`
+}
+
+// AddSupportTicketMessageParams defines parameters for AddSupportTicketMessage.
+type AddSupportTicketMessageParams struct {
+	Email   string `form:"email" json:"email"`
+	Expires string `form:"expires" json:"expires"`
+	Sig     string `form:"sig" json:"sig"`
+}
+
+// ResolveSupportTicketParams defines parameters for ResolveSupportTicket.
+type ResolveSupportTicketParams struct {
+	Email   string `form:"email" json:"email"`
+	Expires string `form:"expires" json:"expires"`
+	Sig     string `form:"sig" json:"sig"`
 }
 
 // PublishModuleJSONRequestBody defines body for PublishModule for application/json ContentType.
@@ -120,6 +240,18 @@ type PublishModuleJSONRequestBody = PublishModuleRequest
 
 // UpdateModuleVersionJSONRequestBody defines body for UpdateModuleVersion for application/json ContentType.
 type UpdateModuleVersionJSONRequestBody = UpdateModuleVersionRequest
+
+// UpdateAdminSupportTicketJSONRequestBody defines body for UpdateAdminSupportTicket for application/json ContentType.
+type UpdateAdminSupportTicketJSONRequestBody = UpdateTicketRequest
+
+// AddAdminSupportTicketMessageJSONRequestBody defines body for AddAdminSupportTicketMessage for application/json ContentType.
+type AddAdminSupportTicketMessageJSONRequestBody = AddMessageRequest
+
+// CreateSupportTicketJSONRequestBody defines body for CreateSupportTicket for application/json ContentType.
+type CreateSupportTicketJSONRequestBody = CreateTicketRequest
+
+// AddSupportTicketMessageJSONRequestBody defines body for AddSupportTicketMessage for application/json ContentType.
+type AddSupportTicketMessageJSONRequestBody = AddMessageRequest
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -209,6 +341,44 @@ type ClientInterface interface {
 
 	// ExportSolution request
 	ExportSolution(ctx context.Context, params *ExportSolutionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSupportStats request
+	GetSupportStats(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAdminSupportTickets request
+	ListAdminSupportTickets(ctx context.Context, params *ListAdminSupportTicketsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminSupportTicket request
+	GetAdminSupportTicket(ctx context.Context, uuid string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateAdminSupportTicketWithBody request with any body
+	UpdateAdminSupportTicketWithBody(ctx context.Context, uuid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateAdminSupportTicket(ctx context.Context, uuid string, body UpdateAdminSupportTicketJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddAdminSupportTicketMessageWithBody request with any body
+	AddAdminSupportTicketMessageWithBody(ctx context.Context, uuid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AddAdminSupportTicketMessage(ctx context.Context, uuid string, body AddAdminSupportTicketMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSupportTickets request
+	ListSupportTickets(ctx context.Context, params *ListSupportTicketsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateSupportTicketWithBody request with any body
+	CreateSupportTicketWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateSupportTicket(ctx context.Context, body CreateSupportTicketJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSupportTicket request
+	GetSupportTicket(ctx context.Context, uuid string, params *GetSupportTicketParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddSupportTicketMessageWithBody request with any body
+	AddSupportTicketMessageWithBody(ctx context.Context, uuid string, params *AddSupportTicketMessageParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AddSupportTicketMessage(ctx context.Context, uuid string, params *AddSupportTicketMessageParams, body AddSupportTicketMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResolveSupportTicket request
+	ResolveSupportTicket(ctx context.Context, uuid string, params *ResolveSupportTicketParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) PublishModuleWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -273,6 +443,174 @@ func (c *Client) HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn)
 
 func (c *Client) ExportSolution(ctx context.Context, params *ExportSolutionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExportSolutionRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSupportStats(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSupportStatsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListAdminSupportTickets(ctx context.Context, params *ListAdminSupportTicketsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAdminSupportTicketsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAdminSupportTicket(ctx context.Context, uuid string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminSupportTicketRequest(c.Server, uuid)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateAdminSupportTicketWithBody(ctx context.Context, uuid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAdminSupportTicketRequestWithBody(c.Server, uuid, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateAdminSupportTicket(ctx context.Context, uuid string, body UpdateAdminSupportTicketJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAdminSupportTicketRequest(c.Server, uuid, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddAdminSupportTicketMessageWithBody(ctx context.Context, uuid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddAdminSupportTicketMessageRequestWithBody(c.Server, uuid, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddAdminSupportTicketMessage(ctx context.Context, uuid string, body AddAdminSupportTicketMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddAdminSupportTicketMessageRequest(c.Server, uuid, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListSupportTickets(ctx context.Context, params *ListSupportTicketsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSupportTicketsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateSupportTicketWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSupportTicketRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateSupportTicket(ctx context.Context, body CreateSupportTicketJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSupportTicketRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSupportTicket(ctx context.Context, uuid string, params *GetSupportTicketParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSupportTicketRequest(c.Server, uuid, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddSupportTicketMessageWithBody(ctx context.Context, uuid string, params *AddSupportTicketMessageParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddSupportTicketMessageRequestWithBody(c.Server, uuid, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddSupportTicketMessage(ctx context.Context, uuid string, params *AddSupportTicketMessageParams, body AddSupportTicketMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddSupportTicketMessageRequest(c.Server, uuid, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ResolveSupportTicket(ctx context.Context, uuid string, params *ResolveSupportTicketParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveSupportTicketRequest(c.Server, uuid, params)
 	if err != nil {
 		return nil, err
 	}
@@ -435,6 +773,656 @@ func NewExportSolutionRequest(server string, params *ExportSolutionParams) (*htt
 	return req, nil
 }
 
+// NewGetSupportStatsRequest generates requests for GetSupportStats
+func NewGetSupportStatsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/support/admin/stats")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListAdminSupportTicketsRequest generates requests for ListAdminSupportTickets
+func NewListAdminSupportTicketsRequest(server string, params *ListAdminSupportTicketsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/support/admin/tickets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Status != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "status", runtime.ParamLocationQuery, *params.Status); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Priority != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "priority", runtime.ParamLocationQuery, *params.Priority); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Search != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "search", runtime.ParamLocationQuery, *params.Search); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminSupportTicketRequest generates requests for GetAdminSupportTicket
+func NewGetAdminSupportTicketRequest(server string, uuid string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "uuid", runtime.ParamLocationPath, uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/support/admin/tickets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateAdminSupportTicketRequest calls the generic UpdateAdminSupportTicket builder with application/json body
+func NewUpdateAdminSupportTicketRequest(server string, uuid string, body UpdateAdminSupportTicketJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateAdminSupportTicketRequestWithBody(server, uuid, "application/json", bodyReader)
+}
+
+// NewUpdateAdminSupportTicketRequestWithBody generates requests for UpdateAdminSupportTicket with any type of body
+func NewUpdateAdminSupportTicketRequestWithBody(server string, uuid string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "uuid", runtime.ParamLocationPath, uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/support/admin/tickets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewAddAdminSupportTicketMessageRequest calls the generic AddAdminSupportTicketMessage builder with application/json body
+func NewAddAdminSupportTicketMessageRequest(server string, uuid string, body AddAdminSupportTicketMessageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddAdminSupportTicketMessageRequestWithBody(server, uuid, "application/json", bodyReader)
+}
+
+// NewAddAdminSupportTicketMessageRequestWithBody generates requests for AddAdminSupportTicketMessage with any type of body
+func NewAddAdminSupportTicketMessageRequestWithBody(server string, uuid string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "uuid", runtime.ParamLocationPath, uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/support/admin/tickets/%s/messages", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListSupportTicketsRequest generates requests for ListSupportTickets
+func NewListSupportTicketsRequest(server string, params *ListSupportTicketsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/support/tickets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "email", runtime.ParamLocationQuery, params.Email); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "expires", runtime.ParamLocationQuery, params.Expires); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sig", runtime.ParamLocationQuery, params.Sig); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "offset", runtime.ParamLocationQuery, *params.Offset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateSupportTicketRequest calls the generic CreateSupportTicket builder with application/json body
+func NewCreateSupportTicketRequest(server string, body CreateSupportTicketJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateSupportTicketRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateSupportTicketRequestWithBody generates requests for CreateSupportTicket with any type of body
+func NewCreateSupportTicketRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/support/tickets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetSupportTicketRequest generates requests for GetSupportTicket
+func NewGetSupportTicketRequest(server string, uuid string, params *GetSupportTicketParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "uuid", runtime.ParamLocationPath, uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/support/tickets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "email", runtime.ParamLocationQuery, params.Email); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "expires", runtime.ParamLocationQuery, params.Expires); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sig", runtime.ParamLocationQuery, params.Sig); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddSupportTicketMessageRequest calls the generic AddSupportTicketMessage builder with application/json body
+func NewAddSupportTicketMessageRequest(server string, uuid string, params *AddSupportTicketMessageParams, body AddSupportTicketMessageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddSupportTicketMessageRequestWithBody(server, uuid, params, "application/json", bodyReader)
+}
+
+// NewAddSupportTicketMessageRequestWithBody generates requests for AddSupportTicketMessage with any type of body
+func NewAddSupportTicketMessageRequestWithBody(server string, uuid string, params *AddSupportTicketMessageParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "uuid", runtime.ParamLocationPath, uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/support/tickets/%s/messages", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "email", runtime.ParamLocationQuery, params.Email); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "expires", runtime.ParamLocationQuery, params.Expires); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sig", runtime.ParamLocationQuery, params.Sig); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewResolveSupportTicketRequest generates requests for ResolveSupportTicket
+func NewResolveSupportTicketRequest(server string, uuid string, params *ResolveSupportTicketParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "uuid", runtime.ParamLocationPath, uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/support/tickets/%s/resolve", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "email", runtime.ParamLocationQuery, params.Email); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "expires", runtime.ParamLocationQuery, params.Expires); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "sig", runtime.ParamLocationQuery, params.Sig); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -493,6 +1481,44 @@ type ClientWithResponsesInterface interface {
 
 	// ExportSolutionWithResponse request
 	ExportSolutionWithResponse(ctx context.Context, params *ExportSolutionParams, reqEditors ...RequestEditorFn) (*ExportSolutionResponse, error)
+
+	// GetSupportStatsWithResponse request
+	GetSupportStatsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSupportStatsResponse, error)
+
+	// ListAdminSupportTicketsWithResponse request
+	ListAdminSupportTicketsWithResponse(ctx context.Context, params *ListAdminSupportTicketsParams, reqEditors ...RequestEditorFn) (*ListAdminSupportTicketsResponse, error)
+
+	// GetAdminSupportTicketWithResponse request
+	GetAdminSupportTicketWithResponse(ctx context.Context, uuid string, reqEditors ...RequestEditorFn) (*GetAdminSupportTicketResponse, error)
+
+	// UpdateAdminSupportTicketWithBodyWithResponse request with any body
+	UpdateAdminSupportTicketWithBodyWithResponse(ctx context.Context, uuid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAdminSupportTicketResponse, error)
+
+	UpdateAdminSupportTicketWithResponse(ctx context.Context, uuid string, body UpdateAdminSupportTicketJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAdminSupportTicketResponse, error)
+
+	// AddAdminSupportTicketMessageWithBodyWithResponse request with any body
+	AddAdminSupportTicketMessageWithBodyWithResponse(ctx context.Context, uuid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddAdminSupportTicketMessageResponse, error)
+
+	AddAdminSupportTicketMessageWithResponse(ctx context.Context, uuid string, body AddAdminSupportTicketMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*AddAdminSupportTicketMessageResponse, error)
+
+	// ListSupportTicketsWithResponse request
+	ListSupportTicketsWithResponse(ctx context.Context, params *ListSupportTicketsParams, reqEditors ...RequestEditorFn) (*ListSupportTicketsResponse, error)
+
+	// CreateSupportTicketWithBodyWithResponse request with any body
+	CreateSupportTicketWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSupportTicketResponse, error)
+
+	CreateSupportTicketWithResponse(ctx context.Context, body CreateSupportTicketJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSupportTicketResponse, error)
+
+	// GetSupportTicketWithResponse request
+	GetSupportTicketWithResponse(ctx context.Context, uuid string, params *GetSupportTicketParams, reqEditors ...RequestEditorFn) (*GetSupportTicketResponse, error)
+
+	// AddSupportTicketMessageWithBodyWithResponse request with any body
+	AddSupportTicketMessageWithBodyWithResponse(ctx context.Context, uuid string, params *AddSupportTicketMessageParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddSupportTicketMessageResponse, error)
+
+	AddSupportTicketMessageWithResponse(ctx context.Context, uuid string, params *AddSupportTicketMessageParams, body AddSupportTicketMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*AddSupportTicketMessageResponse, error)
+
+	// ResolveSupportTicketWithResponse request
+	ResolveSupportTicketWithResponse(ctx context.Context, uuid string, params *ResolveSupportTicketParams, reqEditors ...RequestEditorFn) (*ResolveSupportTicketResponse, error)
 }
 
 type PublishModuleResponse struct {
@@ -581,6 +1607,225 @@ func (r ExportSolutionResponse) StatusCode() int {
 	return 0
 }
 
+type GetSupportStatsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TicketStats
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSupportStatsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSupportStatsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListAdminSupportTicketsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TicketListResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAdminSupportTicketsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAdminSupportTicketsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAdminSupportTicketResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TicketDetailResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminSupportTicketResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminSupportTicketResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateAdminSupportTicketResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Ticket
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateAdminSupportTicketResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateAdminSupportTicketResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AddAdminSupportTicketMessageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *TicketMessage
+}
+
+// Status returns HTTPResponse.Status
+func (r AddAdminSupportTicketMessageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddAdminSupportTicketMessageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListSupportTicketsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TicketListResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSupportTicketsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSupportTicketsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateSupportTicketResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *CreateTicketResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateSupportTicketResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateSupportTicketResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetSupportTicketResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TicketDetailResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSupportTicketResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSupportTicketResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type AddSupportTicketMessageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *TicketMessage
+}
+
+// Status returns HTTPResponse.Status
+func (r AddSupportTicketMessageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddSupportTicketMessageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ResolveSupportTicketResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r ResolveSupportTicketResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ResolveSupportTicketResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // PublishModuleWithBodyWithResponse request with arbitrary body returning *PublishModuleResponse
 func (c *ClientWithResponses) PublishModuleWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PublishModuleResponse, error) {
 	rsp, err := c.PublishModuleWithBody(ctx, contentType, body, reqEditors...)
@@ -631,6 +1876,128 @@ func (c *ClientWithResponses) ExportSolutionWithResponse(ctx context.Context, pa
 		return nil, err
 	}
 	return ParseExportSolutionResponse(rsp)
+}
+
+// GetSupportStatsWithResponse request returning *GetSupportStatsResponse
+func (c *ClientWithResponses) GetSupportStatsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSupportStatsResponse, error) {
+	rsp, err := c.GetSupportStats(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSupportStatsResponse(rsp)
+}
+
+// ListAdminSupportTicketsWithResponse request returning *ListAdminSupportTicketsResponse
+func (c *ClientWithResponses) ListAdminSupportTicketsWithResponse(ctx context.Context, params *ListAdminSupportTicketsParams, reqEditors ...RequestEditorFn) (*ListAdminSupportTicketsResponse, error) {
+	rsp, err := c.ListAdminSupportTickets(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAdminSupportTicketsResponse(rsp)
+}
+
+// GetAdminSupportTicketWithResponse request returning *GetAdminSupportTicketResponse
+func (c *ClientWithResponses) GetAdminSupportTicketWithResponse(ctx context.Context, uuid string, reqEditors ...RequestEditorFn) (*GetAdminSupportTicketResponse, error) {
+	rsp, err := c.GetAdminSupportTicket(ctx, uuid, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminSupportTicketResponse(rsp)
+}
+
+// UpdateAdminSupportTicketWithBodyWithResponse request with arbitrary body returning *UpdateAdminSupportTicketResponse
+func (c *ClientWithResponses) UpdateAdminSupportTicketWithBodyWithResponse(ctx context.Context, uuid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAdminSupportTicketResponse, error) {
+	rsp, err := c.UpdateAdminSupportTicketWithBody(ctx, uuid, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAdminSupportTicketResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateAdminSupportTicketWithResponse(ctx context.Context, uuid string, body UpdateAdminSupportTicketJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAdminSupportTicketResponse, error) {
+	rsp, err := c.UpdateAdminSupportTicket(ctx, uuid, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAdminSupportTicketResponse(rsp)
+}
+
+// AddAdminSupportTicketMessageWithBodyWithResponse request with arbitrary body returning *AddAdminSupportTicketMessageResponse
+func (c *ClientWithResponses) AddAdminSupportTicketMessageWithBodyWithResponse(ctx context.Context, uuid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddAdminSupportTicketMessageResponse, error) {
+	rsp, err := c.AddAdminSupportTicketMessageWithBody(ctx, uuid, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddAdminSupportTicketMessageResponse(rsp)
+}
+
+func (c *ClientWithResponses) AddAdminSupportTicketMessageWithResponse(ctx context.Context, uuid string, body AddAdminSupportTicketMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*AddAdminSupportTicketMessageResponse, error) {
+	rsp, err := c.AddAdminSupportTicketMessage(ctx, uuid, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddAdminSupportTicketMessageResponse(rsp)
+}
+
+// ListSupportTicketsWithResponse request returning *ListSupportTicketsResponse
+func (c *ClientWithResponses) ListSupportTicketsWithResponse(ctx context.Context, params *ListSupportTicketsParams, reqEditors ...RequestEditorFn) (*ListSupportTicketsResponse, error) {
+	rsp, err := c.ListSupportTickets(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSupportTicketsResponse(rsp)
+}
+
+// CreateSupportTicketWithBodyWithResponse request with arbitrary body returning *CreateSupportTicketResponse
+func (c *ClientWithResponses) CreateSupportTicketWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSupportTicketResponse, error) {
+	rsp, err := c.CreateSupportTicketWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateSupportTicketResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateSupportTicketWithResponse(ctx context.Context, body CreateSupportTicketJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSupportTicketResponse, error) {
+	rsp, err := c.CreateSupportTicket(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateSupportTicketResponse(rsp)
+}
+
+// GetSupportTicketWithResponse request returning *GetSupportTicketResponse
+func (c *ClientWithResponses) GetSupportTicketWithResponse(ctx context.Context, uuid string, params *GetSupportTicketParams, reqEditors ...RequestEditorFn) (*GetSupportTicketResponse, error) {
+	rsp, err := c.GetSupportTicket(ctx, uuid, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSupportTicketResponse(rsp)
+}
+
+// AddSupportTicketMessageWithBodyWithResponse request with arbitrary body returning *AddSupportTicketMessageResponse
+func (c *ClientWithResponses) AddSupportTicketMessageWithBodyWithResponse(ctx context.Context, uuid string, params *AddSupportTicketMessageParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddSupportTicketMessageResponse, error) {
+	rsp, err := c.AddSupportTicketMessageWithBody(ctx, uuid, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddSupportTicketMessageResponse(rsp)
+}
+
+func (c *ClientWithResponses) AddSupportTicketMessageWithResponse(ctx context.Context, uuid string, params *AddSupportTicketMessageParams, body AddSupportTicketMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*AddSupportTicketMessageResponse, error) {
+	rsp, err := c.AddSupportTicketMessage(ctx, uuid, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddSupportTicketMessageResponse(rsp)
+}
+
+// ResolveSupportTicketWithResponse request returning *ResolveSupportTicketResponse
+func (c *ClientWithResponses) ResolveSupportTicketWithResponse(ctx context.Context, uuid string, params *ResolveSupportTicketParams, reqEditors ...RequestEditorFn) (*ResolveSupportTicketResponse, error) {
+	rsp, err := c.ResolveSupportTicket(ctx, uuid, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResolveSupportTicketResponse(rsp)
 }
 
 // ParsePublishModuleResponse parses an HTTP response from a PublishModuleWithResponse call
@@ -717,6 +2084,256 @@ func ParseExportSolutionResponse(rsp *http.Response) (*ExportSolutionResponse, e
 	return response, nil
 }
 
+// ParseGetSupportStatsResponse parses an HTTP response from a GetSupportStatsWithResponse call
+func ParseGetSupportStatsResponse(rsp *http.Response) (*GetSupportStatsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSupportStatsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TicketStats
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAdminSupportTicketsResponse parses an HTTP response from a ListAdminSupportTicketsWithResponse call
+func ParseListAdminSupportTicketsResponse(rsp *http.Response) (*ListAdminSupportTicketsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAdminSupportTicketsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TicketListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminSupportTicketResponse parses an HTTP response from a GetAdminSupportTicketWithResponse call
+func ParseGetAdminSupportTicketResponse(rsp *http.Response) (*GetAdminSupportTicketResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminSupportTicketResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TicketDetailResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateAdminSupportTicketResponse parses an HTTP response from a UpdateAdminSupportTicketWithResponse call
+func ParseUpdateAdminSupportTicketResponse(rsp *http.Response) (*UpdateAdminSupportTicketResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateAdminSupportTicketResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Ticket
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddAdminSupportTicketMessageResponse parses an HTTP response from a AddAdminSupportTicketMessageWithResponse call
+func ParseAddAdminSupportTicketMessageResponse(rsp *http.Response) (*AddAdminSupportTicketMessageResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddAdminSupportTicketMessageResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest TicketMessage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListSupportTicketsResponse parses an HTTP response from a ListSupportTicketsWithResponse call
+func ParseListSupportTicketsResponse(rsp *http.Response) (*ListSupportTicketsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSupportTicketsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TicketListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateSupportTicketResponse parses an HTTP response from a CreateSupportTicketWithResponse call
+func ParseCreateSupportTicketResponse(rsp *http.Response) (*CreateSupportTicketResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateSupportTicketResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest CreateTicketResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSupportTicketResponse parses an HTTP response from a GetSupportTicketWithResponse call
+func ParseGetSupportTicketResponse(rsp *http.Response) (*GetSupportTicketResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSupportTicketResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TicketDetailResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddSupportTicketMessageResponse parses an HTTP response from a AddSupportTicketMessageWithResponse call
+func ParseAddSupportTicketMessageResponse(rsp *http.Response) (*AddSupportTicketMessageResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddSupportTicketMessageResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest TicketMessage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseResolveSupportTicketResponse parses an HTTP response from a ResolveSupportTicketWithResponse call
+func ParseResolveSupportTicketResponse(rsp *http.Response) (*ResolveSupportTicketResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ResolveSupportTicketResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 
@@ -731,6 +2348,36 @@ type ServerInterface interface {
 	// Export solution using one-time token
 	// (GET /solutions/export)
 	ExportSolution(w http.ResponseWriter, r *http.Request, params ExportSolutionParams)
+	// Get ticket statistics
+	// (GET /support/admin/stats)
+	GetSupportStats(w http.ResponseWriter, r *http.Request)
+	// List all tickets (team dashboard)
+	// (GET /support/admin/tickets)
+	ListAdminSupportTickets(w http.ResponseWriter, r *http.Request, params ListAdminSupportTicketsParams)
+	// Get ticket details (team dashboard)
+	// (GET /support/admin/tickets/{uuid})
+	GetAdminSupportTicket(w http.ResponseWriter, r *http.Request, uuid string)
+	// Update ticket (status, assignee, priority)
+	// (PATCH /support/admin/tickets/{uuid})
+	UpdateAdminSupportTicket(w http.ResponseWriter, r *http.Request, uuid string)
+	// Add agent reply to ticket
+	// (POST /support/admin/tickets/{uuid}/messages)
+	AddAdminSupportTicketMessage(w http.ResponseWriter, r *http.Request, uuid string)
+	// List tickets for an email (signed URL auth)
+	// (GET /support/tickets)
+	ListSupportTickets(w http.ResponseWriter, r *http.Request, params ListSupportTicketsParams)
+	// Create a support ticket
+	// (POST /support/tickets)
+	CreateSupportTicket(w http.ResponseWriter, r *http.Request)
+	// Get ticket details (signed URL auth)
+	// (GET /support/tickets/{uuid})
+	GetSupportTicket(w http.ResponseWriter, r *http.Request, uuid string, params GetSupportTicketParams)
+	// Add message to ticket (signed URL auth)
+	// (POST /support/tickets/{uuid}/messages)
+	AddSupportTicketMessage(w http.ResponseWriter, r *http.Request, uuid string, params AddSupportTicketMessageParams)
+	// Resolve ticket (signed URL auth)
+	// (POST /support/tickets/{uuid}/resolve)
+	ResolveSupportTicket(w http.ResponseWriter, r *http.Request, uuid string, params ResolveSupportTicketParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -821,6 +2468,497 @@ func (siw *ServerInterfaceWrapper) ExportSolution(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExportSolution(w, r, params)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSupportStats operation middleware
+func (siw *ServerInterfaceWrapper) GetSupportStats(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSupportStats(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAdminSupportTickets operation middleware
+func (siw *ServerInterfaceWrapper) ListAdminSupportTickets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAdminSupportTicketsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", r.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "priority" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "priority", r.URL.Query(), &params.Priority)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "priority", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "search" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "search", r.URL.Query(), &params.Search)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "search", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "offset", r.URL.Query(), &params.Offset)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdminSupportTickets(w, r, params)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminSupportTicket operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminSupportTicket(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "uuid" -------------
+	var uuid string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "uuid", mux.Vars(r)["uuid"], &uuid, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "uuid", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminSupportTicket(w, r, uuid)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAdminSupportTicket operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAdminSupportTicket(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "uuid" -------------
+	var uuid string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "uuid", mux.Vars(r)["uuid"], &uuid, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "uuid", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAdminSupportTicket(w, r, uuid)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddAdminSupportTicketMessage operation middleware
+func (siw *ServerInterfaceWrapper) AddAdminSupportTicketMessage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "uuid" -------------
+	var uuid string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "uuid", mux.Vars(r)["uuid"], &uuid, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "uuid", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddAdminSupportTicketMessage(w, r, uuid)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSupportTickets operation middleware
+func (siw *ServerInterfaceWrapper) ListSupportTickets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSupportTicketsParams
+
+	// ------------- Required query parameter "email" -------------
+
+	if paramValue := r.URL.Query().Get("email"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "email"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "email", r.URL.Query(), &params.Email)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "email", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "expires" -------------
+
+	if paramValue := r.URL.Query().Get("expires"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "expires"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "expires", r.URL.Query(), &params.Expires)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "expires", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "sig" -------------
+
+	if paramValue := r.URL.Query().Get("sig"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sig"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "sig", r.URL.Query(), &params.Sig)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sig", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "offset", r.URL.Query(), &params.Offset)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSupportTickets(w, r, params)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSupportTicket operation middleware
+func (siw *ServerInterfaceWrapper) CreateSupportTicket(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSupportTicket(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSupportTicket operation middleware
+func (siw *ServerInterfaceWrapper) GetSupportTicket(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "uuid" -------------
+	var uuid string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "uuid", mux.Vars(r)["uuid"], &uuid, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "uuid", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSupportTicketParams
+
+	// ------------- Required query parameter "email" -------------
+
+	if paramValue := r.URL.Query().Get("email"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "email"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "email", r.URL.Query(), &params.Email)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "email", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "expires" -------------
+
+	if paramValue := r.URL.Query().Get("expires"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "expires"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "expires", r.URL.Query(), &params.Expires)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "expires", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "sig" -------------
+
+	if paramValue := r.URL.Query().Get("sig"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sig"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "sig", r.URL.Query(), &params.Sig)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sig", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSupportTicket(w, r, uuid, params)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddSupportTicketMessage operation middleware
+func (siw *ServerInterfaceWrapper) AddSupportTicketMessage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "uuid" -------------
+	var uuid string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "uuid", mux.Vars(r)["uuid"], &uuid, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "uuid", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AddSupportTicketMessageParams
+
+	// ------------- Required query parameter "email" -------------
+
+	if paramValue := r.URL.Query().Get("email"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "email"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "email", r.URL.Query(), &params.Email)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "email", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "expires" -------------
+
+	if paramValue := r.URL.Query().Get("expires"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "expires"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "expires", r.URL.Query(), &params.Expires)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "expires", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "sig" -------------
+
+	if paramValue := r.URL.Query().Get("sig"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sig"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "sig", r.URL.Query(), &params.Sig)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sig", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddSupportTicketMessage(w, r, uuid, params)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResolveSupportTicket operation middleware
+func (siw *ServerInterfaceWrapper) ResolveSupportTicket(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "uuid" -------------
+	var uuid string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "uuid", mux.Vars(r)["uuid"], &uuid, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "uuid", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ResolveSupportTicketParams
+
+	// ------------- Required query parameter "email" -------------
+
+	if paramValue := r.URL.Query().Get("email"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "email"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "email", r.URL.Query(), &params.Email)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "email", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "expires" -------------
+
+	if paramValue := r.URL.Query().Get("expires"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "expires"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "expires", r.URL.Query(), &params.Expires)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "expires", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "sig" -------------
+
+	if paramValue := r.URL.Query().Get("sig"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sig"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "sig", r.URL.Query(), &params.Sig)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sig", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResolveSupportTicket(w, r, uuid, params)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -951,32 +3089,67 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/solutions/export", wrapper.ExportSolution).Methods("GET")
 
+	r.HandleFunc(options.BaseURL+"/support/admin/stats", wrapper.GetSupportStats).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/support/admin/tickets", wrapper.ListAdminSupportTickets).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/support/admin/tickets/{uuid}", wrapper.GetAdminSupportTicket).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/support/admin/tickets/{uuid}", wrapper.UpdateAdminSupportTicket).Methods("PATCH")
+
+	r.HandleFunc(options.BaseURL+"/support/admin/tickets/{uuid}/messages", wrapper.AddAdminSupportTicketMessage).Methods("POST")
+
+	r.HandleFunc(options.BaseURL+"/support/tickets", wrapper.ListSupportTickets).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/support/tickets", wrapper.CreateSupportTicket).Methods("POST")
+
+	r.HandleFunc(options.BaseURL+"/support/tickets/{uuid}", wrapper.GetSupportTicket).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/support/tickets/{uuid}/messages", wrapper.AddSupportTicketMessage).Methods("POST")
+
+	r.HandleFunc(options.BaseURL+"/support/tickets/{uuid}/resolve", wrapper.ResolveSupportTicket).Methods("POST")
+
 	return r
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
