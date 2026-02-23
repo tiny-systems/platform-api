@@ -575,7 +575,6 @@ components:
           type: string
       required:
         - email
-        - subject
         - message
     CreateTicketResponse:
       type: object
