@@ -71,6 +71,35 @@ paths:
           description: Invalid or expired token
         404:
           description: Solution not found
+  /mcp:
+    post:
+      operationId: handle-mcp
+      tags:
+        - mcp
+      description: |
+        MCP (Model Context Protocol) endpoint for AI tool access.
+        Accepts JSON-RPC 2.0 requests over Streamable HTTP transport.
+      security:
+        - DeveloperToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+      responses:
+        200:
+          description: JSON-RPC response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        202:
+          description: Accepted (notifications)
+        401:
+          description: Unauthorized
   /devtools/update-module-version:
     post:
       operationId: update-module-version

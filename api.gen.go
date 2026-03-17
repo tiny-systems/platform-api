@@ -109,6 +109,9 @@ type UpdateModuleVersionRequest struct {
 	Tag string `json:"tag"`
 }
 
+// HandleMcpJSONBody defines parameters for HandleMcp.
+type HandleMcpJSONBody map[string]interface{}
+
 // ExportSolutionParams defines parameters for ExportSolution.
 type ExportSolutionParams struct {
 	// Token One-time export token
@@ -120,6 +123,9 @@ type PublishModuleJSONRequestBody = PublishModuleRequest
 
 // UpdateModuleVersionJSONRequestBody defines body for UpdateModuleVersion for application/json ContentType.
 type UpdateModuleVersionJSONRequestBody = UpdateModuleVersionRequest
+
+// HandleMcpJSONRequestBody defines body for HandleMcp for application/json ContentType.
+type HandleMcpJSONRequestBody HandleMcpJSONBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -207,6 +213,11 @@ type ClientInterface interface {
 	// HealthCheck request
 	HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// HandleMcpWithBody request with any body
+	HandleMcpWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	HandleMcp(ctx context.Context, body HandleMcpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ExportSolution request
 	ExportSolution(ctx context.Context, params *ExportSolutionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
@@ -261,6 +272,30 @@ func (c *Client) UpdateModuleVersion(ctx context.Context, body UpdateModuleVersi
 
 func (c *Client) HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewHealthCheckRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) HandleMcpWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewHandleMcpRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) HandleMcp(ctx context.Context, body HandleMcpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewHandleMcpRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -390,6 +425,46 @@ func NewHealthCheckRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewHandleMcpRequest calls the generic HandleMcp builder with application/json body
+func NewHandleMcpRequest(server string, body HandleMcpJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewHandleMcpRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewHandleMcpRequestWithBody generates requests for HandleMcp with any type of body
+func NewHandleMcpRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/mcp")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewExportSolutionRequest generates requests for ExportSolution
 func NewExportSolutionRequest(server string, params *ExportSolutionParams) (*http.Request, error) {
 	var err error
@@ -491,6 +566,11 @@ type ClientWithResponsesInterface interface {
 	// HealthCheckWithResponse request
 	HealthCheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthCheckResponse, error)
 
+	// HandleMcpWithBodyWithResponse request with any body
+	HandleMcpWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*HandleMcpResponse, error)
+
+	HandleMcpWithResponse(ctx context.Context, body HandleMcpJSONRequestBody, reqEditors ...RequestEditorFn) (*HandleMcpResponse, error)
+
 	// ExportSolutionWithResponse request
 	ExportSolutionWithResponse(ctx context.Context, params *ExportSolutionParams, reqEditors ...RequestEditorFn) (*ExportSolutionResponse, error)
 }
@@ -553,6 +633,28 @@ func (r HealthCheckResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r HealthCheckResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type HandleMcpResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *map[string]interface{}
+}
+
+// Status returns HTTPResponse.Status
+func (r HandleMcpResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r HandleMcpResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -624,6 +726,23 @@ func (c *ClientWithResponses) HealthCheckWithResponse(ctx context.Context, reqEd
 	return ParseHealthCheckResponse(rsp)
 }
 
+// HandleMcpWithBodyWithResponse request with arbitrary body returning *HandleMcpResponse
+func (c *ClientWithResponses) HandleMcpWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*HandleMcpResponse, error) {
+	rsp, err := c.HandleMcpWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseHandleMcpResponse(rsp)
+}
+
+func (c *ClientWithResponses) HandleMcpWithResponse(ctx context.Context, body HandleMcpJSONRequestBody, reqEditors ...RequestEditorFn) (*HandleMcpResponse, error) {
+	rsp, err := c.HandleMcp(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseHandleMcpResponse(rsp)
+}
+
 // ExportSolutionWithResponse request returning *ExportSolutionResponse
 func (c *ClientWithResponses) ExportSolutionWithResponse(ctx context.Context, params *ExportSolutionParams, reqEditors ...RequestEditorFn) (*ExportSolutionResponse, error) {
 	rsp, err := c.ExportSolution(ctx, params, reqEditors...)
@@ -691,6 +810,32 @@ func ParseHealthCheckResponse(rsp *http.Response) (*HealthCheckResponse, error) 
 	return response, nil
 }
 
+// ParseHandleMcpResponse parses an HTTP response from a HandleMcpWithResponse call
+func ParseHandleMcpResponse(rsp *http.Response) (*HandleMcpResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &HandleMcpResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseExportSolutionResponse parses an HTTP response from a ExportSolutionWithResponse call
 func ParseExportSolutionResponse(rsp *http.Response) (*ExportSolutionResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -728,6 +873,9 @@ type ServerInterface interface {
 
 	// (GET /health)
 	HealthCheck(w http.ResponseWriter, r *http.Request)
+
+	// (POST /mcp)
+	HandleMcp(w http.ResponseWriter, r *http.Request)
 	// Export solution using one-time token
 	// (GET /solutions/export)
 	ExportSolution(w http.ResponseWriter, r *http.Request, params ExportSolutionParams)
@@ -787,6 +935,26 @@ func (siw *ServerInterfaceWrapper) HealthCheck(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.HealthCheck(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// HandleMcp operation middleware
+func (siw *ServerInterfaceWrapper) HandleMcp(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, DeveloperTokenScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.HandleMcp(w, r)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -949,6 +1117,8 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/health", wrapper.HealthCheck).Methods("GET")
 
+	r.HandleFunc(options.BaseURL+"/mcp", wrapper.HandleMcp).Methods("POST")
+
 	r.HandleFunc(options.BaseURL+"/solutions/export", wrapper.ExportSolution).Methods("GET")
 
 	return r
@@ -957,26 +1127,29 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"h3fL3d8BAAD//xTCX0kwFAAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
