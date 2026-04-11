@@ -1,6 +1,6 @@
 openapi: "3.0.0"
 info:
-  version: 0.3.0
+  version: 0.4.0
   title: Tiny Systems API
   description: |
     Public [Tiny Systems](https://tinysystems.io/) API.
@@ -180,6 +180,85 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SolutionSearchResponse"
+
+  /v1/modules/search:
+    get:
+      operationId: search-public-modules
+      tags:
+        - modules
+      summary: Search the public module catalog
+      description: |
+        Search Tiny Systems' public module catalog by keyword. Returns the
+        same slice that backs https://tinysystems.io/modules — modules with
+        `public = true` and their latest version.
+
+        Returns summaries only (name, description, latest version, facet
+        flags). Use `/v1/modules/{name}` for the full detail payload
+        including components, port schemas, RBAC permissions, and helm
+        install instructions.
+
+        This endpoint is the catalog counterpart to `list_modules` on the
+        local MCP server: the latter lists modules already installed in
+        the caller's cluster, while this one lists modules available to
+        install.
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword query matched against module name and description
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Maximum results to return
+      responses:
+        200:
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicModuleSearchResponse"
+
+  /v1/modules/{name}:
+    get:
+      operationId: get-public-module
+      tags:
+        - modules
+      summary: Get full details of a public module
+      description: |
+        Returns the complete PublicModuleDetails payload for a single
+        module: description, latest version, components with port schemas,
+        RBAC permissions, and the helm install configuration the desktop
+        client / installer uses (chart repo, chart name, command template,
+        prerequisites, warnings, storage/ingress requirements).
+
+        `name` accepts either the base name (e.g. `common-module-v0`) or
+        the full workspace-qualified name (e.g. `tinysystems/common-module-v0`).
+        Private modules return 404 regardless of caller identity.
+      security: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Module name (base or workspace-qualified)
+      responses:
+        200:
+          description: Full module details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicModuleDetails"
+        404:
+          description: Module not found or not public
 
   /v1/solutions/{uuid}:
     get:
@@ -486,6 +565,229 @@ components:
         - source_handle
         - target
         - target_handle
+
+    PublicModuleSearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicModuleSummary"
+      required:
+        - results
+
+    PublicModuleSummary:
+      type: object
+      description: |
+        Lightweight module entry returned by `/v1/modules/search`. Carries
+        enough for the caller to choose a module to install; follow up
+        with `/v1/modules/{name}` for components and install instructions.
+      properties:
+        name:
+          type: string
+          description: Workspace-qualified module name (e.g. "tinysystems/common-module-v0")
+        full_name:
+          type: string
+          description: Human-readable display name
+        description:
+          type: string
+        verified:
+          type: boolean
+          description: Whether the module has been verified by Tiny Systems
+        latest_version:
+          $ref: "#/components/schemas/PublicModuleVersionSummary"
+      required:
+        - name
+        - description
+
+    PublicModuleVersionSummary:
+      type: object
+      properties:
+        version:
+          type: string
+        sdk_version:
+          type: string
+        requires_kubernetes_access:
+          type: boolean
+          description: Module needs RBAC access to the Kubernetes API
+      required:
+        - version
+
+    PublicModuleDetails:
+      type: object
+      description: |
+        Full module payload returned by `/v1/modules/{name}`. Equivalent
+        to the summary plus the full latest version, every component with
+        port schemas, the RBAC permissions the module needs, and the helm
+        install configuration that desktop/local installers use.
+      properties:
+        name:
+          type: string
+        full_name:
+          type: string
+        description:
+          type: string
+        verified:
+          type: boolean
+        latest_version:
+          $ref: "#/components/schemas/PublicModuleVersionDetails"
+        helm_install:
+          $ref: "#/components/schemas/HelmInstallConfig"
+      required:
+        - name
+        - description
+
+    PublicModuleVersionDetails:
+      type: object
+      properties:
+        version:
+          type: string
+        sdk_version:
+          type: string
+        release_notes:
+          type: string
+        repo:
+          type: string
+          description: Container image repository
+        tag:
+          type: string
+          description: Container image tag
+        requires_kubernetes_access:
+          type: boolean
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicModuleComponent"
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicModulePermission"
+      required:
+        - version
+        - components
+
+    PublicModuleComponent:
+      type: object
+      description: |
+        A component inside a module: its name, the description and info
+        the component author wrote, its tags, and the typed ports it
+        exposes.
+      properties:
+        name:
+          type: string
+          description: Component identifier (e.g. "ticker", "http_server")
+        description:
+          type: string
+        info:
+          type: string
+          description: Author-written operational notes; the LLM should read this before wiring the component
+        tags:
+          type: array
+          items:
+            type: string
+        ports:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicModulePort"
+      required:
+        - name
+
+    PublicModulePort:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          description: "source or target"
+          enum:
+            - source
+            - target
+        schema:
+          type: object
+          additionalProperties: {}
+          description: JSON Schema describing the port's data shape
+        default_data:
+          type: object
+          additionalProperties: {}
+          description: Sample data for the port, usable as example input
+      required:
+        - name
+        - type
+
+    PublicModulePermission:
+      type: object
+      description: Kubernetes RBAC rule required by the module
+      properties:
+        api_groups:
+          type: array
+          items:
+            type: string
+        resources:
+          type: array
+          items:
+            type: string
+        verbs:
+          type: array
+          items:
+            type: string
+
+    HelmInstallConfig:
+      type: object
+      description: |
+        Helm installation instructions the caller can render verbatim.
+        The `command` field is a copy-pasteable template with placeholders
+        (e.g. `<NAMESPACE>`) that map to entries in `fields`. Prerequisites
+        and warnings are plain strings meant for display.
+      properties:
+        command:
+          type: string
+          description: Helm install command template with placeholders
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/HelmConfigField"
+        prerequisites:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        requires_ingress:
+          type: boolean
+        requires_storage:
+          type: boolean
+        chart_repo:
+          type: string
+        chart_name:
+          type: string
+
+    HelmConfigField:
+      type: object
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        default_value:
+          type: string
+        placeholder:
+          type: string
+        required:
+          type: boolean
+        type:
+          type: string
+          description: "text or select"
+        options:
+          type: array
+          items:
+            type: string
 
   securitySchemes:
     DeveloperToken:

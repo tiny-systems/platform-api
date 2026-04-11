@@ -25,6 +25,12 @@ const (
 	DeveloperTokenScopes = "DeveloperToken.Scopes"
 )
 
+// Defines values for PublicModulePortType.
+const (
+	Source PublicModulePortType = "source"
+	Target PublicModulePortType = "target"
+)
+
 // BuildPushOptions defines model for BuildPushOptions.
 type BuildPushOptions struct {
 	Password string `json:"password"`
@@ -33,9 +39,143 @@ type BuildPushOptions struct {
 	Username string `json:"username"`
 }
 
+// HelmConfigField defines model for HelmConfigField.
+type HelmConfigField struct {
+	DefaultValue *string   `json:"default_value,omitempty"`
+	Description  *string   `json:"description,omitempty"`
+	Label        *string   `json:"label,omitempty"`
+	Name         *string   `json:"name,omitempty"`
+	Options      *[]string `json:"options,omitempty"`
+	Placeholder  *string   `json:"placeholder,omitempty"`
+	Required     *bool     `json:"required,omitempty"`
+
+	// Type text or select
+	Type *string `json:"type,omitempty"`
+}
+
+// HelmInstallConfig Helm installation instructions the caller can render verbatim.
+// The `command` field is a copy-pasteable template with placeholders
+// (e.g. `<NAMESPACE>`) that map to entries in `fields`. Prerequisites
+// and warnings are plain strings meant for display.
+type HelmInstallConfig struct {
+	ChartName *string `json:"chart_name,omitempty"`
+	ChartRepo *string `json:"chart_repo,omitempty"`
+
+	// Command Helm install command template with placeholders
+	Command         *string            `json:"command,omitempty"`
+	Fields          *[]HelmConfigField `json:"fields,omitempty"`
+	Prerequisites   *[]string          `json:"prerequisites,omitempty"`
+	RequiresIngress *bool              `json:"requires_ingress,omitempty"`
+	RequiresStorage *bool              `json:"requires_storage,omitempty"`
+	Warnings        *[]string          `json:"warnings,omitempty"`
+}
+
 // ModuleRequirements defines model for ModuleRequirements.
 type ModuleRequirements struct {
 	Rbac *RBACRequirements `json:"rbac,omitempty"`
+}
+
+// PublicModuleComponent A component inside a module: its name, the description and info
+// the component author wrote, its tags, and the typed ports it
+// exposes.
+type PublicModuleComponent struct {
+	Description *string `json:"description,omitempty"`
+
+	// Info Author-written operational notes; the LLM should read this before wiring the component
+	Info *string `json:"info,omitempty"`
+
+	// Name Component identifier (e.g. "ticker", "http_server")
+	Name  string              `json:"name"`
+	Ports *[]PublicModulePort `json:"ports,omitempty"`
+	Tags  *[]string           `json:"tags,omitempty"`
+}
+
+// PublicModuleDetails Full module payload returned by `/v1/modules/{name}`. Equivalent
+// to the summary plus the full latest version, every component with
+// port schemas, the RBAC permissions the module needs, and the helm
+// install configuration that desktop/local installers use.
+type PublicModuleDetails struct {
+	Description string  `json:"description"`
+	FullName    *string `json:"full_name,omitempty"`
+
+	// HelmInstall Helm installation instructions the caller can render verbatim.
+	// The `command` field is a copy-pasteable template with placeholders
+	// (e.g. `<NAMESPACE>`) that map to entries in `fields`. Prerequisites
+	// and warnings are plain strings meant for display.
+	HelmInstall   *HelmInstallConfig          `json:"helm_install,omitempty"`
+	LatestVersion *PublicModuleVersionDetails `json:"latest_version,omitempty"`
+	Name          string                      `json:"name"`
+	Verified      *bool                       `json:"verified,omitempty"`
+}
+
+// PublicModulePermission Kubernetes RBAC rule required by the module
+type PublicModulePermission struct {
+	ApiGroups *[]string `json:"api_groups,omitempty"`
+	Resources *[]string `json:"resources,omitempty"`
+	Verbs     *[]string `json:"verbs,omitempty"`
+}
+
+// PublicModulePort defines model for PublicModulePort.
+type PublicModulePort struct {
+	// DefaultData Sample data for the port, usable as example input
+	DefaultData *map[string]interface{} `json:"default_data,omitempty"`
+	Description *string                 `json:"description,omitempty"`
+	Name        string                  `json:"name"`
+
+	// Schema JSON Schema describing the port's data shape
+	Schema *map[string]interface{} `json:"schema,omitempty"`
+
+	// Type source or target
+	Type PublicModulePortType `json:"type"`
+}
+
+// PublicModulePortType source or target
+type PublicModulePortType string
+
+// PublicModuleSearchResponse defines model for PublicModuleSearchResponse.
+type PublicModuleSearchResponse struct {
+	Results []PublicModuleSummary `json:"results"`
+}
+
+// PublicModuleSummary Lightweight module entry returned by `/v1/modules/search`. Carries
+// enough for the caller to choose a module to install; follow up
+// with `/v1/modules/{name}` for components and install instructions.
+type PublicModuleSummary struct {
+	Description string `json:"description"`
+
+	// FullName Human-readable display name
+	FullName      *string                     `json:"full_name,omitempty"`
+	LatestVersion *PublicModuleVersionSummary `json:"latest_version,omitempty"`
+
+	// Name Workspace-qualified module name (e.g. "tinysystems/common-module-v0")
+	Name string `json:"name"`
+
+	// Verified Whether the module has been verified by Tiny Systems
+	Verified *bool `json:"verified,omitempty"`
+}
+
+// PublicModuleVersionDetails defines model for PublicModuleVersionDetails.
+type PublicModuleVersionDetails struct {
+	Components   []PublicModuleComponent   `json:"components"`
+	Permissions  *[]PublicModulePermission `json:"permissions,omitempty"`
+	ReleaseNotes *string                   `json:"release_notes,omitempty"`
+
+	// Repo Container image repository
+	Repo                     *string `json:"repo,omitempty"`
+	RequiresKubernetesAccess *bool   `json:"requires_kubernetes_access,omitempty"`
+	SdkVersion               *string `json:"sdk_version,omitempty"`
+
+	// Tag Container image tag
+	Tag     *string `json:"tag,omitempty"`
+	Version string  `json:"version"`
+}
+
+// PublicModuleVersionSummary defines model for PublicModuleVersionSummary.
+type PublicModuleVersionSummary struct {
+	// RequiresKubernetesAccess Module needs RBAC access to the Kubernetes API
+	RequiresKubernetesAccess *bool   `json:"requires_kubernetes_access,omitempty"`
+	SdkVersion               *string `json:"sdk_version,omitempty"`
+	Version                  string  `json:"version"`
 }
 
 // PublishComponent defines model for PublishComponent.
@@ -166,6 +306,15 @@ type UpdateModuleVersionRequest struct {
 // HandleMcpJSONBody defines parameters for HandleMcp.
 type HandleMcpJSONBody map[string]interface{}
 
+// SearchPublicModulesParams defines parameters for SearchPublicModules.
+type SearchPublicModulesParams struct {
+	// Q Keyword query matched against module name and description
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Limit Maximum results to return
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // ExportSolutionParams defines parameters for ExportSolution.
 type ExportSolutionParams struct {
 	// Token One-time export token
@@ -284,6 +433,12 @@ type ClientInterface interface {
 
 	HandleMcp(ctx context.Context, body HandleMcpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SearchPublicModules request
+	SearchPublicModules(ctx context.Context, params *SearchPublicModulesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetPublicModule request
+	GetPublicModule(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ExportSolution request
 	ExportSolution(ctx context.Context, params *ExportSolutionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -368,6 +523,30 @@ func (c *Client) HandleMcpWithBody(ctx context.Context, contentType string, body
 
 func (c *Client) HandleMcp(ctx context.Context, body HandleMcpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewHandleMcpRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SearchPublicModules(ctx context.Context, params *SearchPublicModulesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchPublicModulesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetPublicModule(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPublicModuleRequest(c.Server, name)
 	if err != nil {
 		return nil, err
 	}
@@ -557,6 +736,105 @@ func NewHandleMcpRequestWithBody(server string, contentType string, body io.Read
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSearchPublicModulesRequest generates requests for SearchPublicModules
+func NewSearchPublicModulesRequest(server string, params *SearchPublicModulesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/modules/search")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "q", runtime.ParamLocationQuery, *params.Q); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetPublicModuleRequest generates requests for GetPublicModule
+func NewGetPublicModuleRequest(server string, name string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/modules/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -782,6 +1060,12 @@ type ClientWithResponsesInterface interface {
 
 	HandleMcpWithResponse(ctx context.Context, body HandleMcpJSONRequestBody, reqEditors ...RequestEditorFn) (*HandleMcpResponse, error)
 
+	// SearchPublicModulesWithResponse request
+	SearchPublicModulesWithResponse(ctx context.Context, params *SearchPublicModulesParams, reqEditors ...RequestEditorFn) (*SearchPublicModulesResponse, error)
+
+	// GetPublicModuleWithResponse request
+	GetPublicModuleWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetPublicModuleResponse, error)
+
 	// ExportSolutionWithResponse request
 	ExportSolutionWithResponse(ctx context.Context, params *ExportSolutionParams, reqEditors ...RequestEditorFn) (*ExportSolutionResponse, error)
 
@@ -872,6 +1156,50 @@ func (r HandleMcpResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r HandleMcpResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SearchPublicModulesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PublicModuleSearchResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchPublicModulesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchPublicModulesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetPublicModuleResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PublicModuleDetails
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPublicModuleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPublicModuleResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1004,6 +1332,24 @@ func (c *ClientWithResponses) HandleMcpWithResponse(ctx context.Context, body Ha
 	return ParseHandleMcpResponse(rsp)
 }
 
+// SearchPublicModulesWithResponse request returning *SearchPublicModulesResponse
+func (c *ClientWithResponses) SearchPublicModulesWithResponse(ctx context.Context, params *SearchPublicModulesParams, reqEditors ...RequestEditorFn) (*SearchPublicModulesResponse, error) {
+	rsp, err := c.SearchPublicModules(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchPublicModulesResponse(rsp)
+}
+
+// GetPublicModuleWithResponse request returning *GetPublicModuleResponse
+func (c *ClientWithResponses) GetPublicModuleWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetPublicModuleResponse, error) {
+	rsp, err := c.GetPublicModule(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPublicModuleResponse(rsp)
+}
+
 // ExportSolutionWithResponse request returning *ExportSolutionResponse
 func (c *ClientWithResponses) ExportSolutionWithResponse(ctx context.Context, params *ExportSolutionParams, reqEditors ...RequestEditorFn) (*ExportSolutionResponse, error) {
 	rsp, err := c.ExportSolution(ctx, params, reqEditors...)
@@ -1115,6 +1461,58 @@ func ParseHandleMcpResponse(rsp *http.Response) (*HandleMcpResponse, error) {
 	return response, nil
 }
 
+// ParseSearchPublicModulesResponse parses an HTTP response from a SearchPublicModulesWithResponse call
+func ParseSearchPublicModulesResponse(rsp *http.Response) (*SearchPublicModulesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchPublicModulesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PublicModuleSearchResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetPublicModuleResponse parses an HTTP response from a GetPublicModuleWithResponse call
+func ParseGetPublicModuleResponse(rsp *http.Response) (*GetPublicModuleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPublicModuleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PublicModuleDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseExportSolutionResponse parses an HTTP response from a ExportSolutionWithResponse call
 func ParseExportSolutionResponse(rsp *http.Response) (*ExportSolutionResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -1207,6 +1605,12 @@ type ServerInterface interface {
 
 	// (POST /v1/mcp)
 	HandleMcp(w http.ResponseWriter, r *http.Request)
+	// Search the public module catalog
+	// (GET /v1/modules/search)
+	SearchPublicModules(w http.ResponseWriter, r *http.Request, params SearchPublicModulesParams)
+	// Get full details of a public module
+	// (GET /v1/modules/{name})
+	GetPublicModule(w http.ResponseWriter, r *http.Request, name string)
 	// Export solution using one-time token
 	// (GET /v1/solutions/export)
 	ExportSolution(w http.ResponseWriter, r *http.Request, params ExportSolutionParams)
@@ -1284,6 +1688,68 @@ func (siw *ServerInterfaceWrapper) HandleMcp(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.HandleMcp(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// SearchPublicModules operation middleware
+func (siw *ServerInterfaceWrapper) SearchPublicModules(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchPublicModulesParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "q", r.URL.Query(), &params.Q)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchPublicModules(w, r, params)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// GetPublicModule operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicModule(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "name" -------------
+	var name string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", mux.Vars(r)["name"], &name, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicModule(w, r, name)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -1519,6 +1985,10 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/v1/mcp", wrapper.HandleMcp).Methods("POST")
 
+	r.HandleFunc(options.BaseURL+"/v1/modules/search", wrapper.SearchPublicModules).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/v1/modules/{name}", wrapper.GetPublicModule).Methods("GET")
+
 	r.HandleFunc(options.BaseURL+"/v1/solutions/export", wrapper.ExportSolution).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/v1/solutions/search", wrapper.SearchPublicSolutions).Methods("GET")
@@ -1531,47 +2001,71 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
