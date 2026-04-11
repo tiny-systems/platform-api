@@ -1,15 +1,22 @@
 openapi: "3.0.0"
 info:
-  version: 0.2.0
+  version: 0.3.0
   title: Tiny Systems API
-  description: Public [Tiny Systems](https://tinysystems.io/) API
+  description: |
+    Public [Tiny Systems](https://tinysystems.io/) API.
+
+    All endpoints live under the `/v1/` prefix. The prefix is part of the
+    stability contract: once an endpoint is published under `/v1/`, its
+    path, method, request shape, and response shape cannot change in a
+    breaking way. Breaking changes ship under a new major prefix (`/v2/`,
+    etc.) alongside the old one for a deprecation window.
 
 servers:
   - url: https://api.tinysystems.io
     description: Tiny Systems API server
 
 paths:
-  /health:
+  /v1/health:
     get:
       operationId: health-check
       tags:
@@ -19,7 +26,8 @@ paths:
       responses:
         200:
           description: Success
-  /devtools/publish-module:
+
+  /v1/devtools/publish-module:
     post:
       operationId: publish-module
       tags:
@@ -42,36 +50,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PublishModuleResult"
-  /solutions/export:
-    get:
-      operationId: export-solution
+
+  /v1/devtools/update-module-version:
+    post:
+      operationId: update-module-version
       tags:
-        - solutions
-      summary: Export solution using one-time token
+        - devtools
       description: |
-        Returns solution export JSON. Requires a valid one-time token
-        obtained via gRPC CreateExportToken.
-      security: []
-      parameters:
-        - name: token
-          in: query
-          required: true
-          schema:
-            type: string
-          description: One-time export token
+        Update module version with image information
+      security:
+        - DeveloperToken: []
+      requestBody:
+        description: Module Version ID, image information
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateModuleVersionRequest"
       responses:
         200:
-          description: Solution export JSON
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: {}
-        401:
-          description: Invalid or expired token
-        404:
-          description: Solution not found
-  /mcp:
+          description: Success
+
+  /v1/mcp:
     post:
       operationId: handle-mcp
       tags:
@@ -100,25 +100,117 @@ paths:
           description: Accepted (notifications)
         401:
           description: Unauthorized
-  /devtools/update-module-version:
-    post:
-      operationId: update-module-version
+
+  /v1/solutions/export:
+    get:
+      operationId: export-solution
       tags:
-        - devtools
+        - solutions
+      summary: Export solution using one-time token
       description: |
-        Update module version with image information
-      security:
-        - DeveloperToken: []
-      requestBody:
-        description: Module Version ID, image information
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateModuleVersionRequest"
+        Returns solution export JSON. Requires a valid one-time token
+        obtained via gRPC CreateExportToken.
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: One-time export token
       responses:
         200:
-          description: Success
+          description: Solution export JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+        401:
+          description: Invalid or expired token
+        404:
+          description: Solution not found
+
+  /v1/solutions/search:
+    get:
+      operationId: search-public-solutions
+      tags:
+        - solutions
+      summary: Search public solutions catalog
+      description: |
+        Search the public solutions catalog by keyword and/or tags.
+        Returns summaries only — use `/v1/solutions/{uuid}` for the full
+        structure including flows, nodes, and edges.
+
+        When an embedding index is available server-side, semantic search
+        runs first; otherwise the query falls back to keyword match on
+        title, description, and tags. Only solutions marked `public=true`
+        are returned regardless of caller authentication.
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword query matched against title, description, and tags
+        - name: tags
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          description: Tag filter; repeat the parameter for multiple tags
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Maximum results to return
+      responses:
+        200:
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SolutionSearchResponse"
+
+  /v1/solutions/{uuid}:
+    get:
+      operationId: get-public-solution
+      tags:
+        - solutions
+      summary: Get full details of a public solution
+      description: |
+        Returns the complete `SolutionDetails` payload for a public
+        solution: every flow with its nodes, edges, and configurations,
+        plus any solution-level variables. Only solutions marked
+        `public=true` are accessible anonymously; private solutions
+        return 404.
+      security: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Solution UUID
+      responses:
+        200:
+          description: Full solution details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SolutionDetails"
+        404:
+          description: Solution not found or not public
+
 components:
   schemas:
     NodeStatisticsMap:
@@ -271,6 +363,130 @@ components:
         - id
         - repo
         - tag
+
+    SolutionSummary:
+      type: object
+      description: |
+        Brief overview of a solution returned by `/v1/solutions/search`.
+        Carries enough for the caller to render a result row and decide
+        whether to fetch the full details.
+      properties:
+        uuid:
+          type: string
+          description: Stable solution identifier, used with `/v1/solutions/{uuid}`
+        title:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - uuid
+        - title
+        - description
+
+    SolutionSearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SolutionSummary"
+      required:
+        - results
+
+    SolutionDetails:
+      type: object
+      description: |
+        Full solution structure returned by `/v1/solutions/{uuid}`.
+        Contains every flow with its nodes, edges, and configurations,
+        plus any solution-level variables.
+      properties:
+        uuid:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        flows:
+          type: array
+          items:
+            $ref: "#/components/schemas/SolutionFlow"
+        variables:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+      required:
+        - uuid
+        - title
+        - description
+        - flows
+
+    SolutionFlow:
+      type: object
+      properties:
+        title:
+          type: string
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SolutionNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/SolutionEdge"
+      required:
+        - title
+        - nodes
+        - edges
+
+    SolutionNode:
+      type: object
+      properties:
+        id:
+          type: string
+        component:
+          type: string
+        module:
+          type: string
+        settings:
+          type: object
+          additionalProperties: {}
+        position:
+          type: object
+          additionalProperties: {}
+      required:
+        - id
+        - component
+        - module
+
+    SolutionEdge:
+      type: object
+      properties:
+        source:
+          type: string
+        source_handle:
+          type: string
+        target:
+          type: string
+        target_handle:
+          type: string
+        configuration:
+          type: object
+          additionalProperties: {}
+      required:
+        - source
+        - source_handle
+        - target
+        - target_handle
+
   securitySchemes:
     DeveloperToken:
       type: http
@@ -281,5 +497,3 @@ components:
       bearerFormat: JWT
 security:
   - BearerAuth: [ ]
-
-
