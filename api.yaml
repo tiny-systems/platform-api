@@ -331,6 +331,21 @@ components:
       properties:
         rbac:
           $ref: '#/components/schemas/RBACRequirements'
+        storage:
+          $ref: '#/components/schemas/StorageRequirements'
+    StorageRequirements:
+      type: object
+      description: Persistent storage needs declared by the module. When enabled, the install flow exposes storage-size / storage-class fields and the helm command includes the PVC switches.
+      properties:
+        enabled:
+          type: boolean
+          description: True when the module requires a PVC to function (e.g. file-backed embedded stores).
+        size:
+          type: string
+          description: Default storage size suggestion (e.g. 1Gi, 10Gi). Author hint; UI lets the operator override.
+        storageClassName:
+          type: string
+          description: Default storage class suggestion. Empty uses the cluster default.
     RBACRequirements:
       type: object
       properties:
