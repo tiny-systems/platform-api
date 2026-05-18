@@ -1,6 +1,6 @@
 openapi: "3.0.0"
 info:
-  version: 0.5.4
+  version: 0.5.5
   title: Tiny Systems API
   description: |
     Public [Tiny Systems](https://tinysystems.io/) API.
@@ -814,12 +814,13 @@ components:
     HelmBundle:
       type: object
       description: |
-        One installable bundle the module ships alongside itself.
-        Same <NAMESPACE> placeholder as the module command so a
-        single substitution covers everything in the paste block.
+        Selector into the operator chart's curated subchart set. Name
+        must match a registered subchart alias (e.g. "tei", "pgvector").
+        When the user ticks the bundle's checkbox in the install UI,
+        the bundle's set_flags get appended to the module helm command —
+        one release, one upgrade unit, helm-tracked lifecycle.
       required:
         - name
-        - command
       properties:
         name:
           type: string
@@ -827,19 +828,19 @@ components:
           type: string
         default_enabled:
           type: boolean
-        chart_repo:
-          type: string
-        chart_name:
-          type: string
-        chart_version:
-          type: string
         connection_hint:
           type: string
           description: |
             Free-form note telling the module how to reach this bundle
             once installed (e.g. "DATABASE_URL=postgres://...").
-        command:
-          type: string
+        set_flags:
+          type: array
+          description: |
+            Author defaults rendered as --set flags (e.g.
+            "--set bundles.tei.image.tag=cpu-1.5"). UI appends these
+            for every ticked bundle, alongside "--set bundles.<name>.enabled=true".
+          items:
+            type: string
         exposed_schema:
           type: object
           additionalProperties: {}
