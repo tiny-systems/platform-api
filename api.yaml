@@ -333,6 +333,49 @@ components:
           $ref: '#/components/schemas/RBACRequirements'
         storage:
           $ref: '#/components/schemas/StorageRequirements'
+        bundles:
+          type: array
+          description: Third-party Helm releases the module can install alongside itself (e.g. embedding-module ships TEI, database-extension ships pgvector). Install UI exposes one toggle per bundle; enabled bundles get their own helm install in the same namespace.
+          items:
+            $ref: '#/components/schemas/BundledDependency'
+    BundledDependency:
+      type: object
+      description: A Helm release the module offers to provision on install. Author-declared values cover the common case; exposedSchema lets the user override a subset via the install form.
+      required:
+        - name
+        - chartRepo
+        - chartName
+      properties:
+        name:
+          type: string
+          description: Stable identifier — becomes the bundle's Helm release name and the install-form checkbox label.
+        description:
+          type: string
+          description: Shown next to the checkbox in the install UI.
+        chartRepo:
+          type: string
+          description: Helm repository URL.
+        chartName:
+          type: string
+          description: Chart name within the repo.
+        chartVersion:
+          type: string
+          description: Pinned chart version. Empty means use latest at install time (not recommended).
+        defaultEnabled:
+          type: boolean
+          description: Whether the install-form checkbox starts checked.
+        connectionHint:
+          type: string
+          description: Hint shown to the user about how the module reaches the bundle — typically the in-cluster Service URL (e.g. http://tei.tei.svc.cluster.local:80) and which module setting field receives it.
+        values:
+          type: object
+          description: Author-supplied default values passed to the bundle's chart. Map of any-typed values. Merged on top of chart defaults at install time, then overlaid by user overrides.
+        exposedSchema:
+          type: object
+          description: JSON Schema fragment defining which value keys the install form exposes as user-editable fields. Same renderer the flow editor uses. Empty means the bundle is install-as-is, no user knobs.
+        valuesYAML:
+          type: string
+          description: Optional raw values.yaml content for complex bundles where the structured values map is awkward. Merged before values map (which takes precedence).
     StorageRequirements:
       type: object
       description: Persistent storage needs declared by the module. When enabled, the install flow exposes storage-size / storage-class fields and the helm command includes the PVC switches.
