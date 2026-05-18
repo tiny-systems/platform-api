@@ -1,6 +1,6 @@
 openapi: "3.0.0"
 info:
-  version: 0.4.0
+  version: 0.5.3
   title: Tiny Systems API
   description: |
     Public [Tiny Systems](https://tinysystems.io/) API.
@@ -690,6 +690,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PublicModulePermission"
+        bundles:
+          type: array
+          description: |
+            Third-party Helm releases the module declares for install-time
+            provisioning. Same shape as ModuleRequirements.bundles. Empty
+            (or absent) for modules that don't bundle anything.
+          items:
+            $ref: "#/components/schemas/BundledDependency"
       required:
         - version
         - components
