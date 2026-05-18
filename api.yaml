@@ -1,6 +1,6 @@
 openapi: "3.0.0"
 info:
-  version: 0.5.3
+  version: 0.5.4
   title: Tiny Systems API
   description: |
     Public [Tiny Systems](https://tinysystems.io/) API.
@@ -801,6 +801,49 @@ components:
           type: string
         chart_name:
           type: string
+        bundles:
+          type: array
+          description: |
+            Self-contained helm install snippets for each third-party
+            release the module declared. UI renders a checkbox per
+            entry; checked bundles' commands get appended to the
+            module command before paste.
+          items:
+            $ref: "#/components/schemas/HelmBundle"
+
+    HelmBundle:
+      type: object
+      description: |
+        One installable bundle the module ships alongside itself.
+        Same <NAMESPACE> placeholder as the module command so a
+        single substitution covers everything in the paste block.
+      required:
+        - name
+        - command
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        default_enabled:
+          type: boolean
+        chart_repo:
+          type: string
+        chart_name:
+          type: string
+        chart_version:
+          type: string
+        connection_hint:
+          type: string
+          description: |
+            Free-form note telling the module how to reach this bundle
+            once installed (e.g. "DATABASE_URL=postgres://...").
+        command:
+          type: string
+        exposed_schema:
+          type: object
+          additionalProperties: {}
+          description: JSON Schema fragment driving per-bundle form fields on the install page
 
     HelmConfigField:
       type: object
