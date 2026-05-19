@@ -1,6 +1,6 @@
 openapi: "3.0.0"
 info:
-  version: 0.5.5
+  version: 0.5.6
   title: Tiny Systems API
   description: |
     Public [Tiny Systems](https://tinysystems.io/) API.
@@ -338,6 +338,23 @@ components:
           description: Third-party Helm releases the module can install alongside itself (e.g. embedding-module ships TEI, database-extension ships pgvector). Install UI exposes one toggle per bundle; enabled bundles get their own helm install in the same namespace.
           items:
             $ref: '#/components/schemas/BundledDependency'
+        secrets:
+          $ref: '#/components/schemas/SecretRequirements'
+    SecretRequirements:
+      type: object
+      description: |
+        Declares the k8s Secrets a module needs to read. Install UI
+        prompts the user to supply the actual Secret names; chart
+        Role's resourceNames is pinned to those values. Module code
+        resolves placeholders via pkg/secret.Resolve at OnSettings
+        time. Empty means the module consumes no Secrets and no
+        Role is created.
+      properties:
+        names:
+          type: array
+          description: List of Secret names the module may reference (pre-flight allowlist).
+          items:
+            type: string
     BundledDependency:
       type: object
       description: A Helm release the module offers to provision on install. Author-declared values cover the common case; exposedSchema lets the user override a subset via the install form.
