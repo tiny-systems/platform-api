@@ -1,6 +1,6 @@
 openapi: "3.0.0"
 info:
-  version: 0.5.6
+  version: 0.6.0
   title: Tiny Systems API
   description: |
     Public [Tiny Systems](https://tinysystems.io/) API.
@@ -23,50 +23,6 @@ paths:
         - healthcheck
       description: Health check endpoint
       security: []
-      responses:
-        200:
-          description: Success
-
-  /v1/devtools/publish-module:
-    post:
-      operationId: publish-module
-      tags:
-        - devtools
-      description: |
-        Registers module and returns credentials for push
-      security:
-        - DeveloperToken: []
-      requestBody:
-        description: Publish module request
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PublishModuleRequest"
-      responses:
-        200:
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PublishModuleResult"
-
-  /v1/devtools/update-module-version:
-    post:
-      operationId: update-module-version
-      tags:
-        - devtools
-      description: |
-        Update module version with image information
-      security:
-        - DeveloperToken: []
-      requestBody:
-        description: Module Version ID, image information
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateModuleVersionRequest"
       responses:
         200:
           description: Success
@@ -266,66 +222,6 @@ components:
       type: object
       additionalProperties: {}
 
-    PublishModuleResult:
-      type: object
-      properties:
-        module:
-          $ref: "#/components/schemas/PublishModuleVersion"
-        options:
-          $ref: "#/components/schemas/BuildPushOptions"
-    PublishModuleVersion:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        version:
-          type: string
-      required:
-        - id
-        - name
-        - version
-    BuildPushOptions:
-      type: object
-      properties:
-        username:
-          type: string
-        password:
-          type: string
-        repo:
-          type: string
-        tag:
-          type: string
-      required:
-        - username
-        - password
-        - repo
-        - tag
-    PublishModuleRequest:
-      type: object
-      properties:
-        name:
-          type: string
-        version:
-          type: string
-        info:
-          type: string
-        description:
-          type: string
-        sdk_version:
-          type: string
-          description: SDK version used to build this module
-        components:
-          type: array
-          items:
-            $ref: '#/components/schemas/PublishComponent'
-        requirements:
-          $ref: '#/components/schemas/ModuleRequirements'
-      required:
-        - name
-        - version
-        - components
     ModuleRequirements:
       type: object
       properties:
@@ -431,63 +327,6 @@ components:
           type: array
           items:
             type: string
-    PublishComponent:
-      type: object
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-        info:
-          type: string
-        tags:
-          type: array
-          items:
-            type: string
-        ports:
-          type: array
-          items:
-            $ref: '#/components/schemas/PublishComponentPort'
-      required:
-        - name
-        - description
-    PublishComponentPort:
-      type: object
-      properties:
-        name:
-          type: string
-        label:
-          type: string
-        source:
-          type: boolean
-        position:
-          type: integer
-        schema:
-          type: object
-          additionalProperties: {}
-        default_data:
-          type: object
-          additionalProperties: {}
-      required:
-        - name
-        - source
-    UpdateModuleVersionRequest:
-      type: object
-      properties:
-        id:
-          type: string
-          description: Module Version ID
-        repo:
-          type: string
-          description: Image repo
-        tag:
-          type: string
-          description: Image tag
-      required:
-        - id
-        - repo
-        - tag
-
     SolutionSummary:
       type: object
       description: |
@@ -887,9 +726,6 @@ components:
             type: string
 
   securitySchemes:
-    DeveloperToken:
-      type: http
-      scheme: bearer
     BearerAuth:
       type: http
       scheme: bearer
